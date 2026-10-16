@@ -1,0 +1,35 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "eslint.workingDirectories": [
+    { "directory": "apps/web", "changeProcessCWD": true },
+    { "directory": "apps/api", "changeProcessCWD": true },
+    { "directory": "apps/admin", "changeProcessCWD": true },
+    { "directory": "services/ai-service", "changeProcessCWD": true },
+    { "directory": "packages/ui", "changeProcessCWD": true },
+    { "directory": "packages/contracts", "changeProcessCWD": true },
+    { "directory": "packages/config", "changeProcessCWD": true },
+    { "directory": "packages/utils", "changeProcessCWD": true }
+  ],
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.next": true,
+    "**/coverage": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.next": true,
+    "**/coverage": true,
+    "**/.turbo": true
+  }
+}

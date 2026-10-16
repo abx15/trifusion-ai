@@ -1,0 +1,117 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum WorkspaceType {
+  PERSONAL
+  COMPANY
+}
+
+enum WorkspaceRole {
+  OWNER
+  TEAM_ADMIN
+  MEMBER
+  VIEWER
+}
+
+model User {
+  id                      String                   @id @default(uuid())
+  email                   String                   @unique
+  passwordHash            String?
+  isEmailVerified         Boolean                  @default(false)
+  isActive                Boolean                  @default(true)
+  profile                 UserProfile?
+  refreshTokens           RefreshToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  workspaceMemberships    WorkspaceMember[]
+  ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  @@index([email])
+}
+
+model UserProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName String
+  lastName  String
+  avatarUrl String?
+  timezone  String   @default("UTC")
+  locale    String   @default("en")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  deviceInfo String?
+  expiresAt  DateTime
+  isRevoked  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Workspace {
+  id        String            @id @default(uuid())
+  name      String
+  slug      String            @unique
+  type      WorkspaceType     @default(PERSONAL)
+  ownerId   String
+  owner     User              @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  members   WorkspaceMember[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  workspaceId String
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+

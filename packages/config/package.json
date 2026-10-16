@@ -1,0 +1,15 @@
+{
+  "name": "@trifusion/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.js",
+  "scripts": {
+    "lint": "node -e \"require('./eslint.js'); console.log('eslint.js is valid')\"",
+    "lint:fix": "node -e \"require('./eslint.js'); console.log('eslint.js is valid')\""
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.4"
+  }
+}

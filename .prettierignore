@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+.vercel/
+.netlify/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Misc
+.DS_Store
+Thumbs.db
+*.pem
+*.key
+*.crt
+
+# Lock files (keep them as-is)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Generated files
+coverage/
+.nyc_output/
+*.tsbuildinfo

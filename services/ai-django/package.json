@@ -1,0 +1,15 @@
+{
+  "name": "@trifusion/ai-django",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "python manage.py runserver 0.0.0.0:3003",
+    "start": "python manage.py runserver 0.0.0.0:3003",
+    "build": "python manage.py check",
+    "lint": "python -m ruff check .",
+    "lint:fix": "python -m ruff check --fix .",
+    "typecheck": "python -m py_compile manage.py ai_service/settings.py",
+    "test": "python -m pytest"
+  }
+}
+

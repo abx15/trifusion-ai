@@ -1,0 +1,168 @@
+# ============================================
+# DEPENDENCIES
+# ============================================
+node_modules/
+.pnp
+.pnp.js
+
+# ============================================
+# ENVIRONMENT VARIABLES
+# ============================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# ============================================
+# BUILD OUTPUTS
+# ============================================
+dist/
+build/
+.next/
+out/
+.turbo/
+.vercel/
+.netlify/
+
+# ============================================
+# TESTING
+# ============================================
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+
+# ============================================
+# DEBUG LOGS
+# ============================================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ============================================
+# LOCAL ENVIRONMENT FILES
+# ============================================
+.DS_Store
+*.pem
+*.key
+*.crt
+Thumbs.db
+
+# ============================================
+# EDITORS
+# ============================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ============================================
+# DATABASE
+# ============================================
+*.db
+*.sqlite
+*.sqlite3
+database/prisma/migrations/*.db
+
+# ============================================
+# LOGS
+# ============================================
+logs/
+*.log
+pm2-*.log
+
+# ============================================
+# CACHE
+# ============================================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ============================================
+# TEMPORARY FILES
+# ============================================
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ============================================
+# OS FILES
+# ============================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================
+# PACKAGE MANAGER LOCK FILES
+# ============================================
+# Keep package-lock.json if using npm
+# Keep yarn.lock if using yarn
+# Keep pnpm-lock.yaml if using pnpm (we are using pnpm)
+
+# ============================================
+# SPECIFIC APP IGNORES
+# ============================================
+# Next.js
+.next/
+out/
+swc/
+
+# NestJS
+dist/
+*.tsbuildinfo
+
+# ============================================
+# AI / ML FILES
+# ============================================
+*.model
+*.pkl
+*.onnx
+*.h5
+weights/
+checkpoints/
+
+# ============================================
+# SECRETS AND SENSITIVE DATA
+# ============================================
+secrets/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+credentials.json
+service-account.json
+
+# ============================================
+# DEPLOYMENT
+# ============================================
+.serverless/
+.fusebox/
+.dynamodb/
+.vercel/
+.netlify/
+
+# ============================================
+# MISC
+# ============================================
+*.pid
+*.seed
+*.pid.lock
+.tsbuildinfo
