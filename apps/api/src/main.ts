@@ -9,7 +9,7 @@ async function bootstrap() {
   });
 
   // Global prefix with health/ready excluded from versioning
-  app.setGlobalPrefix('api', {
+  app.setGlobalPrefix('api/v1', {
     exclude: ['health', 'health/', 'ready', 'ready/'],
   });
 
@@ -36,11 +36,13 @@ async function bootstrap() {
   // Swagger OpenAPI documentation
   const config = new DocumentBuilder()
     .setTitle('TriFusion AI API')
-    .setDescription('AI-powered Business Workspace REST API')
+    .setDescription('AI-powered Business Workspace REST API — Identity, Tenancy & Core Services')
     .setVersion('1.0')
     .addBearerAuth()
     .addTag('Health', 'System health and readiness probes')
     .addTag('Authentication', 'User authentication and session management')
+    .addTag('Workspaces', 'Multi-tenant workspace, member and invitation management')
+    .addTag('Platform Staff', 'Platform administration and auditing (Internal staff only)')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

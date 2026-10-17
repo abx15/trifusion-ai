@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { AuditLogService } from '../audit/audit.service';
+import { UserStatus } from '@prisma/client';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -31,7 +33,14 @@ describe('AuthService', () => {
     $transaction: jest.fn(),
   };
 
+  const mockAuditLogService = {
+    log: jest.fn().mockResolvedValue(undefined),
+    findLogs: jest.fn().mockResolvedValue({ total: 0, logs: [] }),
+  };
+
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     mockPrisma.$transaction.mockImplementation(async (callback: any) => {
       if (typeof callback === 'function') {
         return callback(mockPrisma);
@@ -46,6 +55,10 @@ describe('AuthService', () => {
         {
           provide: JwtService,
           useValue: { sign: jest.fn().mockReturnValue('access-token') },
+        },
+        {
+          provide: AuditLogService,
+          useValue: mockAuditLogService,
         },
       ],
     }).compile();
@@ -98,7 +111,7 @@ describe('AuthService', () => {
   });
 
   it('should throw UnauthorizedException on disabled user', async () => {
-    mockPrisma.user.findUnique.mockResolvedValueOnce({ id: 'u1', isActive: false });
+    mockPrisma.user.findUnique.mockResolvedValueOnce({ id: 'u1', status: UserStatus.SUSPENDED });
     await expect(service.getMe('u1')).rejects.toThrow('User not found or disabled');
   });
 });

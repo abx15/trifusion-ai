@@ -112,12 +112,12 @@ The database design provides high-performance relational integrity, strict multi
 ### Workspaces & Tenancy
 
 - **`Workspace`**:
-  - `id`: UUID (Primary Key)
+  - `id`: UUID (Primary Key, default `uuid()`)
   - `name`: String
   - `slug`: String (Unique index)
   - `type`: Enum `PERSONAL` | `COMPANY`
-  - `ownerId`: UUID (Foreign Key -> `User.id`)
-  - `logoUrl`: String (Nullable)
+  - `status`: Enum `ACTIVE` | `SUSPENDED` | `ARCHIVED` (default `ACTIVE`)
+  - `ownerId`: UUID (Foreign Key -> `User.id`, ON DELETE RESTRICT)
   - `createdAt`: Timestamp with timezone
   - `updatedAt`: Timestamp with timezone
 
@@ -125,36 +125,85 @@ The database design provides high-performance relational integrity, strict multi
   - `id`: UUID (Primary Key)
   - `workspaceId`: UUID (Foreign Key -> `Workspace.id`, ON DELETE CASCADE)
   - `userId`: UUID (Foreign Key -> `User.id`, ON DELETE CASCADE)
-  - `role`: Enum `OWNER` | `TEAM_ADMIN` | `MEMBER` | `VIEWER`
+  - `role`: Enum `OWNER` | `TEAM_ADMIN` | `MEMBER` | `VIEWER` (default `MEMBER`)
+  - `status`: Enum `ACTIVE` | `SUSPENDED` (default `ACTIVE`)
+  - `joinedAt`: Timestamp with timezone (default `now()`)
   - `createdAt`: Timestamp with timezone
   - Unique Constraint: `(workspaceId, userId)`
+  - Indexes: `[workspaceId]`, `[userId]`, `[workspaceId, role]`, `[status]`
 
 - **`WorkspaceInvitation`**:
   - `id`: UUID (Primary Key)
   - `workspaceId`: UUID (Foreign Key -> `Workspace.id`, ON DELETE CASCADE)
-  - `email`: String
-  - `role`: Enum `OWNER` | `TEAM_ADMIN` | `MEMBER` | `VIEWER`
+  - `email`: String (Indexed)
+  - `role`: Enum `OWNER` | `TEAM_ADMIN` | `MEMBER` | `VIEWER` (default `MEMBER`)
   - `tokenHash`: String (Unique)
-  - `inviterId`: UUID (Foreign Key -> `User.id`)
-  - `status`: Enum `PENDING` | `ACCEPTED` | `REVOKED` | `EXPIRED`
-  - `expiresAt`: Timestamp with timezone
+  - `inviterId`: UUID (Foreign Key -> `User.id`, ON DELETE RESTRICT)
+  - `status`: Enum `PENDING` | `ACCEPTED` | `REVOKED` | `EXPIRED` (default `PENDING`)
+  - `expiresAt`: Timestamp with timezone (Indexed)
+  - `acceptedAt`: Timestamp with timezone (Nullable)
+  - `revokedAt`: Timestamp with timezone (Nullable)
   - `createdAt`: Timestamp with timezone
+  - Unique Constraint: `(workspaceId, email)`
+
+### Platform Staff & Auditing
+
+- **`PlatformStaffRole`**:
+  - `id`: UUID (Primary Key)
+  - `userId`: UUID (Foreign Key -> `User.id`, ON DELETE CASCADE)
+  - `role`: Enum `SUPERADMIN` | `PLATFORM_ADMIN` | `ANALYST` | `SUPPORT_AGENT`
+  - `status`: Enum `ACTIVE` | `INACTIVE` | `SUSPENDED` (default `ACTIVE`)
+  - `grantedBy`: String (Nullable)
+  - `grantedAt`: Timestamp with timezone (default `now()`)
+  - `revokedAt`: Timestamp with timezone (Nullable)
+  - `reason`: String (Nullable)
+  - `createdAt`: Timestamp with timezone
+  - `updatedAt`: Timestamp with timezone
+  - Unique Constraint: `(userId, role)`
+
+- **`AuditLog`**:
+  - `id`: UUID (Primary Key)
+  - `actorId`: UUID (Foreign Key -> `User.id`, ON DELETE CASCADE)
+  - `action`: Enum `AuditAction`
+  - `targetType`: String
+  - `targetId`: String
+  - `workspaceId`: UUID (Foreign Key -> `Workspace.id`, ON DELETE SET NULL, Nullable)
+  - `requestId`: String (Nullable, Indexed for correlation tracking)
+  - `metadata`: JSONB (Nullable, strictly sanitized/redacted)
+  - `ip`: String (Nullable)
+  - `userAgent`: String (Nullable)
+  - `createdAt`: Timestamp with timezone (default `now()`, Indexed)
 
 ---
 
-## 4. Indexing & Multi-Tenant Strategy
+## 4. Deletion & Retention Policies
 
-1. **Foreign Key Indexes**: Every tenant-owned table (`Client`, `Project`, `Task`, `ActivityEvent`, etc.) includes an index on `(workspaceId)`.
+| Model | Parent Relationship | Policy | Justification |
+|---|---|---|---|
+| `UserProfile` | `User` | `CASCADE` | User profile data cannot outlive user account. |
+| `RefreshToken` | `User` | `CASCADE` | Authentication sessions must be revoked on account deletion. |
+| `WorkspaceMember` | `Workspace` / `User` | `CASCADE` | Memberships drop with either workspace or user account. |
+| `Workspace` | `User` (`ownerId`) | `RESTRICT` | Primary workspace owner cannot be deleted without reassigning ownership. |
+| `WorkspaceInvitation` | `Workspace` | `CASCADE` | Pending invitations are invalidated on workspace purge. |
+| `AuditLog` | `Workspace` | `SET NULL` | Audit history is immutable and retained even if workspace tenant is removed. |
+| `AuditLog` | Application Layer | `APPEND-ONLY` | API exposes zero update or delete endpoints for `AuditLog`. |
+
+---
+
+## 5. Indexing & Multi-Tenant Strategy
+
+1. **Foreign Key Indexes**: Every tenant-owned table (`WorkspaceMember`, `WorkspaceInvitation`, and Phase 3 tables `Client`, `Project`, `Task`) includes an index on `(workspaceId)`.
 2. **Composite Query Indexes**:
    - `(workspaceId, createdAt DESC)` for paginated listings.
+   - `(workspaceId, role)` for membership role lookups.
    - `(workspaceId, status)` for filtered views.
-   - `(workspaceId, assigneeId)` for task assignment views.
 3. **Tenant Scoping Guard**: No database query is executed without an explicit `workspaceId` condition matching the authenticated session's verified workspace membership.
 
 ---
 
-## 5. Migration & Maintenance Strategy
+## 6. Migration & Maintenance Strategy
 
-- Migrations are managed strictly via Prisma Migrate (`pnpm prisma migrate dev` in development and `pnpm prisma migrate deploy` in production CI/CD).
+- Migrations are managed strictly via Prisma Migrate (`pnpm prisma migrate deploy` in production CI/CD).
 - Production migrations must always be non-destructive and backwards-compatible.
-- Seeds under `database/seeds/seed.ts` provide reproducible test scenarios with dummy workspaces and authenticated mock accounts.
+- Seeds under `database/seeds/seed.ts` provide reproducible test scenarios with dummy workspaces and authenticated mock accounts. Seeds refuse to execute in production.
+

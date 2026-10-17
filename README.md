@@ -1,6 +1,6 @@
 # TriFusion AI
 
-> AI-powered Business Workspace for individuals, freelancers, digital agencies, and IT/service companies.
+ AI-powered Business Workspace for individuals, freelancers, digital agencies, and IT/service companies.
 
 ## 📋 Overview
 
@@ -299,5 +299,6 @@ For support, email support@trifusion.ai or open an issue in the repository.
 ---
 
 **Built with ❤️ by the TriFusion AI Team**
-#   t r i f u s i o n - a i  
+#   t r i f u s i o n - a i 
+ 
  
