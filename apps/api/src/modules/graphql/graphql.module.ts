@@ -22,6 +22,7 @@ import { ProjectsModule } from '../projects/projects.module';
 import { TasksModule } from '../tasks/tasks.module';
 import { ActivityModule } from '../activity/activity.module';
 import { WorkspaceSettingsModule } from '../workspace-settings/workspace-settings.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 import { PolicyModule } from '../../common/policy/policy.module';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -76,6 +77,7 @@ registerEnumType(ActivityAction, { name: 'ActivityAction' });
     TasksModule,
     ActivityModule,
     WorkspaceSettingsModule,
+    AnalyticsModule,
     PolicyModule,
     AuthModule,
     PrismaModule,

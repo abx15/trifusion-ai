@@ -20,6 +20,7 @@ import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { WorkspaceSettingsModule } from './modules/workspace-settings/workspace-settings.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { GraphQLModule } from './modules/graphql/graphql.module';
 import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
 
@@ -49,6 +50,7 @@ import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard
     TasksModule,
     ActivityModule,
     WorkspaceSettingsModule,
+    AnalyticsModule,
     GraphQLModule,
   ],
   controllers: [],

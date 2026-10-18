@@ -212,3 +212,17 @@ GraphQL is served at `POST /graphql` by NestJS. It uses the same domain services
 - `recentActivity(workspaceId, limit!, cursor)` — cursor-paginated workspace activity.
 
 All lists require a page size of 1–50. Query depth is capped at 5, complexity at 100, resolver execution at 5 seconds, and requests are rate-limited. Related records are fetched in batched Prisma includes. Production disables introspection/playground and returns sanitized internal errors.
+
+### Phase 5 analytics additions
+
+Phase 5 introduces the workspace analytics service used by both REST and GraphQL to power dashboard summary widgets and trend reporting. The same filter model is reused across endpoints to keep the API consistent.
+
+- `GET /api/v1/workspaces/:workspaceId/analytics/overview` — returns active-project counts, overdue tasks, deadlines, task distribution, and workload summary for the selected workspace.
+- `GET /api/v1/workspaces/:workspaceId/analytics/tasks` — returns task-level metrics and priority breakdowns for the chosen window.
+- `GET /api/v1/workspaces/:workspaceId/analytics/projects` — returns project status distribution and pipeline volume.
+- `GET /api/v1/workspaces/:workspaceId/analytics/team-workload` — returns per-member open-task load, weighted by priority.
+- `GET /api/v1/workspaces/:workspaceId/analytics/client-activity` — returns client activity counts that touched the workspace in the requested time period.
+- `GET /api/v1/workspaces/:workspaceId/analytics/trends` — returns a time series for task creation and completion for dashboards and week-over-week comparisons.
+- `GET /api/v1/platform/analytics/overview` — platform aggregate summary, restricted to `ANALYST`, `PLATFORM_ADMIN`, and `SUPERADMIN`.
+
+All analytics responses include a standard envelope with `reportingPeriod`, `filters`, `generatedAt`, `dataFreshness`, and `metricVersion`. Date ranges are ISO-8601 and must not exceed 365 days. Invalid or reversed ranges are rejected. Empty ranges return zero counts, never estimated values.
