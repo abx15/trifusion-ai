@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "jsx": "preserve",
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -20,16 +24,40 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@/components/*": ["./src/components/*"],
-      "@/lib/*": ["./src/lib/*"],
-      "@/hooks/*": ["./src/hooks/*"],
-      "@trifusion/ui": ["../../packages/ui/src"],
-      "@trifusion/contracts": ["../../packages/contracts/src"],
-      "@trifusion/config": ["../../packages/config/src"],
-      "@trifusion/utils": ["../../packages/utils/src"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@/components/*": [
+        "./src/components/*"
+      ],
+      "@/lib/*": [
+        "./src/lib/*"
+      ],
+      "@/hooks/*": [
+        "./src/hooks/*"
+      ],
+      "@trifusion/ui": [
+        "../../packages/ui/src"
+      ],
+      "@trifusion/contracts": [
+        "../../packages/contracts/src"
+      ],
+      "@trifusion/config": [
+        "../../packages/config/src"
+      ],
+      "@trifusion/utils": [
+        "../../packages/utils/src"
+      ]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next-phase4-smoke/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

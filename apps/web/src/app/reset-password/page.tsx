@@ -1,16 +1,11 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Spinner } from '@trifusion/ui';
+import { AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import React, { Suspense, useState } from 'react';
 import { apiClient } from '../../lib/api-client';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@trifusion/ui';
-import { Button } from '@trifusion/ui';
-import { Input } from '@trifusion/ui';
-import { Label } from '@trifusion/ui';
-import { Alert, AlertDescription } from '@trifusion/ui';
-import { Spinner } from '@trifusion/ui';
-import { ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 function ResetPasswordForm() {
   const searchParams = useSearchParams();

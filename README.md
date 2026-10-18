@@ -1,304 +1,190 @@
 # TriFusion AI
 
- AI-powered Business Workspace for individuals, freelancers, digital agencies, and IT/service companies.
+TriFusion AI is a multi-tenant business workspace for freelancers, agencies, and service teams. The product brings client, project, and task workflows together with workspace membership, role-based access control, audit history, and dashboard views.
 
-## 📋 Overview
+> **Development status:** Phases 0-2 are marked complete. Phase 3 (core domain APIs) and Phase 4 (frontend dashboards) are **partial**. Authenticated database-backed acceptance checks are pending an isolated, non-production test database. See [the development roadmap](docs/DEVELOPMENT_ROADMAP.md) for verified milestones and open work.
 
-TriFusion AI brings project work, client information, tasks, documents, team collaboration, reports, and AI assistance into one secure product. Start with a narrow, reliable MVP, validate it with real users, and expand after the core workflow is stable.
+## What is in the repository
 
-## 🎯 Core Features
+- **Customer web app** - Next.js workspace dashboard for clients, projects, tasks, activity, and workspace settings.
+- **NestJS API** - REST endpoints, Swagger/OpenAPI, GraphQL dashboard queries, authentication, workspace authorization, and domain services.
+- **Platform admin app** - separate staff sign-in and role-gated audit/user-status screens. Analytics and global settings are explicitly unavailable until the API supports them.
+- **Prisma database** - PostgreSQL schema, migrations, and guarded development seeds.
+- **Shared packages** - UI components, API contracts, utilities, and shared configuration.
+- **AI Django service** - a separate service scaffold; it is not required to run the core dashboard.
 
-- **Authentication & Onboarding** - Sign up, sign in, email verification, password reset
-- **Workspaces** - Personal and company workspaces with multi-tenancy
-- **Client Management** - Create, view, update, archive clients
-- **Project Management** - Projects with status, dates, client links, and membership
-- **Task Management** - Tasks with assignment, priority, due dates, and status
-- **Dashboard** - Real-time metrics from persisted data
-- **AI Assistant** - Project summaries, weekly reports, and Q&A with permission-aware retrieval
-- **Notifications** - In-app and email notifications for important events
-- **File Storage** - Private document handling with signed URLs
-- **Reports** - Date-filtered reports for project/task progress
-- **Billing** - Subscription management and payment integration
+REST and GraphQL are served by the NestJS API and use the same domain services and authorization policies. The browser apps use same-origin server-side proxies with app-specific HttpOnly cookies; access and refresh tokens are not stored in browser `localStorage`.
 
-## 🏗️ Tech Stack
+## Technology
 
-### Frontend
-- **Framework:** Next.js 14+ (App Router) + React + TypeScript
-- **Styling:** Tailwind CSS
-- **UI Components:** shadcn/ui
-- **State Management:** TanStack Query
-- **Forms:** React Hook Form + Zod
-- **Charts:** Recharts
+- TypeScript, pnpm workspaces, and Turborepo
+- Next.js 14, React, Tailwind CSS, TanStack Query, and Recharts
+- NestJS, REST/Swagger, GraphQL/Apollo, and Prisma
+- PostgreSQL, including Neon-compatible pooled runtime and direct migration connections
+- Python/Django for the separate AI service
 
-### Backend
-- **Runtime:** Node.js + TypeScript
-- **Framework:** NestJS
-- **API:** REST with Swagger/OpenAPI
-- **ORM:** Prisma
-- **Database:** PostgreSQL
-- **Cache/Queue:** Redis + BullMQ
-- **Real-time:** Socket.IO/WebSockets
-- **AI Streaming:** Server-Sent Events (SSE)
+## Repository layout
 
-### Infrastructure
-- **Database:** PostgreSQL (managed recommended)
-- **Cache:** Redis (managed recommended)
-- **Storage:** S3-compatible object storage
-- **AI Provider:** OpenAI / Anthropic / Google
-- **Email:** SendGrid / SES / Mailgun
-- **Payment:** Stripe / Razorpay
-- **Monitoring:** Sentry
-- **CI/CD:** GitHub Actions
-
-## 📁 Repository Structure
-
-```
-trifusion-ai/
-├── apps/
-│   ├── web/                       # Customer-facing Next.js app
-│   ├── api/                       # Main NestJS API
-│   └── admin/                     # TriFusion internal platform admin UI
-├── services/
-│   └── ai-service/                # Optional FastAPI AI/RAG service
-├── packages/
-│   ├── ui/                        # Shared UI components
-│   ├── contracts/                 # Shared API contracts/types
-│   ├── config/                    # Shared TypeScript/ESLint configuration
-│   └── utils/                     # Shared utilities
-├── database/
-│   ├── prisma/                    # Prisma schema and migrations
-│   ├── seeds/                     # Development/test seed scripts
-│   └── docs/                      # ER diagrams and data model notes
-├── infrastructure/
-│   ├── docker/                    # Docker files
-│   ├── deployment/                # Deployment configuration
-│   └── monitoring/                # Monitoring configuration
-├── docs/
-│   ├── PRD.md
-│   ├── SYSTEM_ARCHITECTURE.md
-│   ├── DATABASE_DESIGN.md
-│   ├── API_CONTRACTS.md
-│   ├── SECURITY.md
-│   ├── DEVELOPMENT_ROADMAP.md
-│   └── ADRs/                      # Architecture Decision Records
-├── tests/
-│   ├── e2e/
-│   ├── integration/
-│   └── security/
-├── scripts/
-├── .github/
-│   └── workflows/
-├── .env.example
-├── .gitignore
-├── package.json
-├── pnpm-workspace.yaml
-├── turbo.json
-├── tsconfig.base.json
-└── README.md
+```text
+apps/
+  api/                 NestJS REST and GraphQL API
+  web/                 Customer-facing Next.js application
+  platform-admin/      Internal platform administration application
+services/
+  ai-django/           Separate AI service
+packages/
+  config/              Shared tooling configuration
+  contracts/           Shared API types and schemas
+  ui/                  Shared UI components
+  utils/               Shared utilities
+database/
+  prisma/              Prisma schema and migrations
+  seeds/               Development-only seed command
+  docs/                ERD and database notes
+docs/
+  ADRs/                Architecture decision records
+  ...                  Product, architecture, security, API, and roadmap docs
 ```
 
-## 🚀 Getting Started
+## Requirements
 
-### Prerequisites
+- Node.js 18 or newer
+- pnpm 8 or newer (the repository pins pnpm 8.15.0)
+- PostgreSQL for local API/database work
+- Python and `pip` if you plan to run the AI Django service
 
-- **Node.js:** >= 18.0.0
-- **pnpm:** >= 8.0.0
-- **PostgreSQL:** >= 14 (for local development)
-- **Redis:** >= 6 (for local development)
-- **Git:** for version control
+Redis, object storage, email, payment, and AI provider services are optional for the current dashboard flows; configure them only when working on the features that use them.
 
-### Installation
+## Local setup
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-org/trifusion-ai.git
-   cd trifusion-ai
-   ```
+### 1. Install dependencies
 
-2. **Install dependencies**
-   ```bash
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-
-   Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-
-   Edit `.env` and fill in the required values:
-   - `DATABASE_URL` - PostgreSQL connection string
-   - `REDIS_URL` - Redis connection string
-   - `AUTH_SECRET` - Generate a secure secret: `openssl rand -base64 32`
-   - `AI_PROVIDER` - Choose your AI provider (openai, anthropic, etc.)
-   - `OPENAI_API_KEY` - Your OpenAI API key (or other provider)
-   - Other optional variables as needed
-
-4. **Set up app-specific environment files**
-
-   ```bash
-   cp apps/web/.env.example apps/web/.env
-   cp apps/api/.env.example apps/api/.env
-   cp apps/admin/.env.example apps/admin/.env
-   cp services/ai-service/.env.example services/ai-service/.env
-   ```
-
-5. **Set up the database**
-
-   Generate Prisma client:
-   ```bash
-   pnpm db:generate
-   ```
-
-   Run migrations:
-   ```bash
-   pnpm db:migrate
-   ```
-
-   (Optional) Seed development data:
-   ```bash
-   pnpm db:seed
-   ```
-
-6. **Start development servers**
-
-   Start all apps in development mode:
-   ```bash
-   pnpm dev
-   ```
-
-   Or start individual apps:
-   ```bash
-   # Web app (Next.js)
-   cd apps/web
-   pnpm dev
-
-   # API (NestJS)
-   cd apps/api
-   pnpm dev
-
-   # Admin UI
-   cd apps/admin
-   pnpm dev
-
-   # AI Service (if needed)
-   cd services/ai-service
-   pnpm dev
-   ```
-
-7. **Access the applications**
-
-   - Web App: http://localhost:3000
-   - API: http://localhost:3001
-   - API Documentation (Swagger): http://localhost:3001/api/docs
-   - Admin UI: http://localhost:3002
-   - AI Service: http://localhost:3003
-
-## 📝 Available Scripts
-
-### Root Scripts
-
-- `pnpm dev` - Start all apps in development mode
-- `pnpm build` - Build all apps for production
-- `pnpm lint` - Lint all code
-- `pnpm lint:fix` - Fix linting issues
-- `pnpm typecheck` - Type-check all TypeScript code
-- `pnpm test` - Run all unit tests
-- `pnpm test:e2e` - Run end-to-end tests
-- `pnpm test:integration` - Run integration tests
-- `pnpm clean` - Clean build artifacts and node_modules
-- `pnpm format` - Format all code with Prettier
-- `pnpm format:check` - Check code formatting
-
-### Database Scripts
-
-- `pnpm db:generate` - Generate Prisma client
-- `pnpm db:migrate` - Create and apply database migrations
-- `pnpm db:migrate:deploy` - Deploy migrations (production)
-- `pnpm db:studio` - Open Prisma Studio
-- `pnpm db:seed` - Seed development data
-- `pnpm db:reset` - Reset database (development only)
-
-## 🧪 Testing
-
-### Unit Tests
-```bash
-pnpm test
+```sh
+git clone https://github.com/abx15/trifusion-ai.git
+cd trifusion-ai
+pnpm install
 ```
 
-### Integration Tests
-```bash
-pnpm test:integration
+### 2. Configure environment files
+
+Copy the templates for the apps you intend to run:
+
+```text
+.env.example                         -> .env
+apps/api/.env.example                -> apps/api/.env
+apps/web/.env.example                -> apps/web/.env
+apps/platform-admin/.env.example     -> apps/platform-admin/.env
 ```
 
-### End-to-End Tests
-```bash
-pnpm test:e2e
+Use fake/local values in development and keep real `.env` files out of version control. At minimum:
+
+- Set `AUTH_SECRET` to a new, randomly generated secret in `apps/api/.env`.
+- Set database URLs in the root `.env` for Prisma CLI commands and in `apps/api/.env` for the running API. Keep the values pointed at the same **development** database.
+- Set `API_INTERNAL_URL` in each Next.js app's environment file to the NestJS API origin and `/api/v1` prefix (for local development, `http://localhost:3001/api/v1`).
+- Do not put credentials or secrets in `NEXT_PUBLIC_*` variables.
+
+The root and app-specific `.env.example` files contain placeholder values, not deployable credentials. Do not copy production secrets into this repository.
+
+### 3. Database setup (development only)
+
+For Neon, configure `DATABASE_URL` as the pooled runtime connection and `DIRECT_URL` as the direct, non-pooled connection for the **same non-production branch**. Use conservative pool/timeout parameters; for example, `connection_limit=5`, `pool_timeout=10`, and `connect_timeout=10` on the pooled URL. Neon may pause idle branches, so the first query after inactivity can take longer.
+
+Never run migrations, seeds, resets, or integration tests against the production/main database. The integration-test harness requires both `DATABASE_URL_TEST` (pooled) and `DIRECT_URL_TEST` (direct) for a separate disposable branch/database and refuses to fall back to `DATABASE_URL`.
+
+Generate the Prisma client and apply development migrations only after verifying that the configured URLs target your development database:
+
+```sh
+pnpm db:generate
+pnpm db:migrate
 ```
 
-## 🔒 Security
+Seeding is optional and restricted to a development-only database. Configure `DATABASE_URL_SEED` to a separate non-production database, set `NODE_ENV=development` and explicitly opt in with `ALLOW_DEV_SEED=true`, then run:
 
-- Never commit `.env` files with real secrets
-- Use strong secrets in production
-- Enable HTTPS in production
-- Configure CORS properly
-- Implement rate limiting
-- Enable audit logging
-- Regular security audits required
+```sh
+pnpm db:seed
+```
 
-See `docs/SECURITY.md` for detailed security guidelines.
+The seed command refuses production and does not fall back to the normal runtime database URL.
 
-## 📚 Documentation
+### 4. Start the applications
 
-- `docs/PRD.md` - Product Requirements Document
-- `docs/SYSTEM_ARCHITECTURE.md` - System Architecture
-- `docs/DATABASE_DESIGN.md` - Database Design
-- `docs/API_CONTRACTS.md` - API Contracts
-- `docs/SECURITY.md` - Security Guidelines
-- `docs/DEVELOPMENT_ROADMAP.md` - Development Roadmap
-- `docs/ADRs/` - Architecture Decision Records
+From the repository root, use separate terminals:
 
-## 🗺️ Development Roadmap
+```sh
+pnpm --filter @trifusion/api start:dev
+pnpm --filter @trifusion/web dev
+pnpm --filter @trifusion/platform-admin dev
+```
 
-The project is divided into 9 phases:
+The AI service is optional:
 
-1. **Phase 0** - Product definition and setup
-2. **Phase 1** - Foundation and identity
-3. **Phase 2** - Workspaces, membership, and tenant isolation
-4. **Phase 3** - Core business workflow (clients, projects, tasks)
-5. **Phase 4** - Collaboration and notifications
-6. **Phase 5** - AI assistant MVP
-7. **Phase 6** - Files, reporting, and subscriptions
-8. **Phase 7** - Security hardening and beta readiness
-9. **Phase 8** - Production launch
+```sh
+cd services/ai-django
+python manage.py runserver 0.0.0.0:3003
+```
 
-See `Project.md` for detailed phase-by-phase implementation plan.
+Local URLs:
 
-## 🤝 Contributing
+| Application | URL |
+|---|---|
+| Customer web | http://localhost:3000 |
+| NestJS API | http://localhost:3001 |
+| Swagger/OpenAPI | http://localhost:3001/api/docs |
+| GraphQL endpoint | http://localhost:3001/graphql |
+| Platform admin | http://localhost:3002 |
+| AI Django service (optional) | http://localhost:3003 |
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests and linting
-4. Submit a pull request
+GraphQL Playground and introspection are disabled in production. Production API errors are mapped to safe messages.
 
-## 📄 License
+## Common commands
 
-UNLICENSED - All rights reserved
+| Command | Description |
+|---|---|
+| `pnpm dev` | Start workspace development tasks |
+| `pnpm build` | Build workspace packages and applications |
+| `pnpm lint` | Lint workspace packages |
+| `pnpm typecheck` | Type-check workspace packages |
+| `pnpm test` | Run workspace test scripts |
+| `pnpm --filter @trifusion/api exec jest --runInBand --testPathIgnorePatterns='integration.spec.ts'` | Run API unit tests without DB integration suites |
+| `pnpm --filter @trifusion/api exec jest --runInBand` | Run API unit and integration suites; requires isolated test database URLs |
+| `pnpm db:generate` | Generate Prisma client |
+| `pnpm db:migrate` | Create/apply a development migration |
+| `pnpm db:migrate:deploy` | Deploy committed migrations to the explicitly configured database |
+| `pnpm db:seed` | Run guarded development seed |
+| `pnpm db:studio` | Open Prisma Studio |
 
-## 🆘 Support
+Use the isolated test database configuration for integration tests; do not use `pnpm db:reset` against a shared or production database.
 
-For support, email support@trifusion.ai or open an issue in the repository.
+## Security and tenancy
 
-## 🔗 Links
+- Workspace membership, role checks, and resource scoping are enforced by the API; frontend role gating is only a user-experience aid.
+- Browser authentication is handled through same-origin proxy routes and HttpOnly cookies. Keep `API_INTERNAL_URL` server-only.
+- Authenticated dashboard/API responses are not publicly cached.
+- Do not commit `.env` files, access tokens, database credentials, or provider secrets.
+- Use separate development, test, and production databases. Never point test or seed variables at the production branch.
+- Review [the security guide](docs/SECURITY.md) before deployment.
 
-- Product Website: https://trifusion.ai
-- Documentation: https://docs.trifusion.ai
-- Status Page: https://status.trifusion.ai
+## Documentation
 
----
+- [Product requirements](docs/PRD.md)
+- [System architecture](docs/SYSTEM_ARCHITECTURE.md)
+- [Database design](docs/DATABASE_DESIGN.md) and [ERD](database/docs/ERD.md)
+- [API contracts](docs/API_CONTRACTS.md)
+- [Authorization matrix](docs/AUTHORIZATION_MATRIX.md)
+- [Security guidance](docs/SECURITY.md)
+- [Architecture decision records](docs/ADRs/)
+- [Development roadmap and verification status](docs/DEVELOPMENT_ROADMAP.md)
 
-**Built with ❤️ by the TriFusion AI Team**
-#   t r i f u s i o n - a i 
- 
- 
+The PRD contains an older phase ordering that differs from the current roadmap and dashboard brief. Reconcile that naming before planning the next phase; the roadmap records the discrepancy. No later phase should be considered complete unless its documented checks have actually passed.
+
+## Contributing
+
+1. Create a feature branch.
+2. Make a focused change and update directly related documentation.
+3. Run the relevant lint, typecheck, build, and test commands.
+4. Never use the production database for development or test validation.
+5. Submit a pull request with the checks performed and any remaining gaps.
+
+## License
+
+UNLICENSED - All rights reserved.

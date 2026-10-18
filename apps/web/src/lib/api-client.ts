@@ -1,210 +1,291 @@
 import type {
-  RegisterRequest,
-  LoginRequest,
-  RefreshTokenRequest,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
-  AuthResponse,
+  ActivityEvent,
   AuthUserResponse,
-  AuthTokens,
+  Client,
+  ClientInput,
+  LoginRequest,
+  PaginatedResponse,
+  Project,
+  ProjectInput,
+  RegisterRequest,
+  Task,
+  TaskInput,
+  TaskStatusInput,
+  WorkspaceRole,
+  WorkspaceSettingsInput,
 } from '@trifusion/contracts';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-
-const HEALTH_URL =
-  process.env.NEXT_PUBLIC_HEALTH_URL || 'http://localhost:3001';
-
-class ApiClientError extends Error {
-  statusCode: number;
-  errors?: unknown[];
-
-  constructor(message: string, statusCode: number, errors?: unknown[]) {
+export class ApiClientError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number,
+    readonly errors?: unknown[],
+  ) {
     super(message);
     this.name = 'ApiClientError';
-    this.statusCode = statusCode;
-    this.errors = errors;
   }
 }
 
-class ApiClient {
-  private accessToken: string | null = null;
-  private refreshToken: string | null = null;
+export interface WorkspaceSettings {
+  id: string;
+  workspaceId: string;
+  companyName: string | null;
+  companyEmail: string | null;
+}
 
-  constructor() {
-    if (typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('trifusion_access_token');
-      this.refreshToken = localStorage.getItem('trifusion_refresh_token');
-    }
+export interface WorkspaceMember {
+  id: string;
+  userId: string;
+  email: string;
+  name: string;
+  role: WorkspaceRole;
+  status: string;
+  joinedAt: string;
+}
+
+export interface WorkspaceInvitation {
+  id: string;
+  email: string;
+  role: WorkspaceRole;
+  expiresAt: string;
+  status: string;
+}
+
+export interface Page<T> extends PaginatedResponse<T> {}
+
+type Query = Record<string, string | number | boolean | null | undefined>;
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set('Accept', 'application/json');
+  if (options.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
   }
 
-  setTokens(tokens: AuthTokens | null) {
-    if (typeof window !== 'undefined') {
-      if (tokens) {
-        this.accessToken = tokens.accessToken;
-        this.refreshToken = tokens.refreshToken;
-        localStorage.setItem('trifusion_access_token', tokens.accessToken);
-        localStorage.setItem('trifusion_refresh_token', tokens.refreshToken);
-      } else {
-        this.accessToken = null;
-        this.refreshToken = null;
-        localStorage.removeItem('trifusion_access_token');
-        localStorage.removeItem('trifusion_refresh_token');
-      }
-    }
+  let response: Response;
+  try {
+    response = await fetch(`/api/backend/${endpoint.replace(/^\/+/, '')}`, {
+      ...options,
+      headers,
+      credentials: 'same-origin',
+      cache: 'no-store',
+    });
+  } catch (error) {
+    throw new ApiClientError(
+      error instanceof Error ? error.message : 'Network connection failed',
+      0,
+    );
   }
 
-  getAccessToken(): string | null {
-    if (!this.accessToken && typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('trifusion_access_token');
-    }
-    return this.accessToken;
-  }
-
-  getRefreshToken(): string | null {
-    if (!this.refreshToken && typeof window !== 'undefined') {
-      this.refreshToken = localStorage.getItem('trifusion_refresh_token');
-    }
-    return this.refreshToken;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    retryOnAuth = true,
-  ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
-    const token = this.getAccessToken();
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...(options.headers as Record<string, string>),
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
+  if (!response.ok) {
+    let errorMessage = `Request failed with status ${response.status}`;
+    let errors: unknown[] | undefined;
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      // Handle 401 Unauthorized token refresh
-      if (response.status === 401 && retryOnAuth && this.getRefreshToken()) {
-        const refreshed = await this.refreshTokens();
-        if (refreshed) {
-          return this.request<T>(endpoint, options, false);
+      const errorData: unknown = await response.json();
+      if (errorData && typeof errorData === 'object') {
+        if ('message' in errorData) {
+          const message = errorData.message;
+          errorMessage = Array.isArray(message)
+            ? message.join(', ')
+            : typeof message === 'string'
+              ? message
+              : errorMessage;
         }
-      }
-
-      if (!response.ok) {
-        let errorMessage = `HTTP error! Status: ${response.status}`;
-        let errors: unknown[] | undefined;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
+        if ('errors' in errorData && Array.isArray(errorData.errors)) {
           errors = errorData.errors;
-        } catch {
-          // ignore json parse error
         }
-        throw new ApiClientError(errorMessage, response.status, errors);
       }
-
-      return (await response.json()) as T;
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        throw error;
-      }
-      throw new ApiClientError(
-        (error as Error).message || 'Network connection failed',
-        0,
-      );
-    }
-  }
-
-  private async refreshTokens(): Promise<boolean> {
-    const refreshToken = this.getRefreshToken();
-    if (!refreshToken) return false;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken } as RefreshTokenRequest),
-      });
-
-      if (!response.ok) {
-        this.setTokens(null);
-        return false;
-      }
-
-      const data = (await response.json()) as AuthTokens;
-      this.setTokens(data);
-      return true;
     } catch {
-      this.setTokens(null);
-      return false;
+      errorMessage = `Request failed with status ${response.status}`;
     }
+    throw new ApiClientError(errorMessage, response.status, errors);
   }
 
-  // Auth Endpoints
-  auth = {
-    register: (data: RegisterRequest) =>
-      this.request<AuthResponse>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-
-    login: (data: LoginRequest) =>
-      this.request<AuthResponse>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-
-    logout: async () => {
-      try {
-        await this.request<{ success: boolean; message: string }>('/auth/logout', {
-          method: 'POST',
-        });
-      } finally {
-        this.setTokens(null);
-      }
-    },
-
-    getMe: () => this.request<AuthUserResponse>('/auth/me'),
-
-    forgotPassword: (data: ForgotPasswordRequest) =>
-      this.request<{ message: string }>('/auth/forgot-password', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-
-    resetPassword: (data: ResetPasswordRequest) =>
-      this.request<{ message: string }>('/auth/reset-password', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
-  };
-
-  // Health Endpoint
-  health = {
-    check: () =>
-      fetch(`${HEALTH_URL}/health`, {
-        headers: { Accept: 'application/json' },
-      }).then((res) =>
-        res.json() as Promise<{
-          status: string;
-          timestamp: string;
-          uptimeSeconds: number;
-          services: { database: string };
-        }>,
-      ),
-  };
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
 }
 
-export const apiClient = new ApiClient();
-export { ApiClientError };
+function queryString(query: Query): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== null && value !== '') {
+      params.set(key, String(value));
+    }
+  }
+  const encoded = params.toString();
+  return encoded ? `?${encoded}` : '';
+}
 
+function workspacePath(workspaceId: string, resource: string): string {
+  return `workspaces/${encodeURIComponent(workspaceId)}/${resource}`;
+}
+
+export const apiClient = {
+  auth: {
+    login: (data: LoginRequest) =>
+      request<{ user: AuthUserResponse }>('auth/login', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    register: (data: RegisterRequest) =>
+      request<{ user: AuthUserResponse }>('auth/register', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    logout: () =>
+      request<{ success: boolean; message: string }>('auth/logout', {
+        method: 'POST',
+      }),
+    getMe: () => request<AuthUserResponse>('auth/me'),
+    forgotPassword: (data: { email: string }) =>
+      request<{ message: string }>('auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    resetPassword: (data: { token: string; newPassword: string }) =>
+      request<{ message: string }>('auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  },
+
+  workspaces: {
+    list: () => request<AuthUserResponse['workspaces']>('workspaces'),
+    validate: (workspaceId: string) =>
+      request<{ valid: true; workspaceId: string; workspaceName: string; role: WorkspaceRole }>(
+        workspacePath(workspaceId, 'validate'),
+      ),
+    members: (workspaceId: string) =>
+      request<WorkspaceMember[]>(workspacePath(workspaceId, 'members')),
+    invitations: (workspaceId: string) =>
+      request<WorkspaceInvitation[]>(workspacePath(workspaceId, 'invitations')),
+    invite: (workspaceId: string, email: string, role: WorkspaceRole) =>
+      request<WorkspaceInvitation & { invitationToken: string }>(workspacePath(workspaceId, 'invitations'), {
+        method: 'POST',
+        body: JSON.stringify({ email, role }),
+      }),
+    updateMemberRole: (workspaceId: string, userId: string, role: WorkspaceRole) =>
+      request<WorkspaceMember>(
+        `${workspacePath(workspaceId, `members/${encodeURIComponent(userId)}/role`)}`,
+        { method: 'PATCH', body: JSON.stringify({ role }) },
+      ),
+    removeMember: (workspaceId: string, userId: string) =>
+      request<{ success: boolean }>(
+        workspacePath(workspaceId, `members/${encodeURIComponent(userId)}`),
+        { method: 'DELETE' },
+      ),
+    revokeInvitation: (workspaceId: string, invitationId: string) =>
+      request<{ success: boolean }>(
+        workspacePath(workspaceId, `invitations/${encodeURIComponent(invitationId)}`),
+        { method: 'DELETE' },
+      ),
+    update: (workspaceId: string, name: string) =>
+      request<{ id: string; name: string }>(`workspaces/${encodeURIComponent(workspaceId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      }),
+  },
+
+  clients: {
+    list: (workspaceId: string, query: Query = {}) =>
+      request<Page<Client>>(`${workspacePath(workspaceId, 'clients')}${queryString(query)}`),
+    get: (workspaceId: string, id: string) =>
+      request<Client>(workspacePath(workspaceId, `clients/${encodeURIComponent(id)}`)),
+    create: (workspaceId: string, input: ClientInput) =>
+      request<Client>(workspacePath(workspaceId, 'clients'), {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (workspaceId: string, id: string, input: Partial<ClientInput>) =>
+      request<Client>(workspacePath(workspaceId, `clients/${encodeURIComponent(id)}`), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    archive: (workspaceId: string, id: string) =>
+      request<Client>(workspacePath(workspaceId, `clients/${encodeURIComponent(id)}/archive`), {
+        method: 'DELETE',
+      }),
+  },
+
+  projects: {
+    list: (workspaceId: string, query: Query = {}) =>
+      request<Page<Project>>(`${workspacePath(workspaceId, 'projects')}${queryString(query)}`),
+    get: (workspaceId: string, id: string) =>
+      request<Project>(workspacePath(workspaceId, `projects/${encodeURIComponent(id)}`)),
+    create: (workspaceId: string, input: ProjectInput) =>
+      request<Project>(workspacePath(workspaceId, 'projects'), {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (workspaceId: string, id: string, input: Partial<ProjectInput>) =>
+      request<Project>(workspacePath(workspaceId, `projects/${encodeURIComponent(id)}`), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    archive: (workspaceId: string, id: string) =>
+      request<Project>(workspacePath(workspaceId, `projects/${encodeURIComponent(id)}/archive`), {
+        method: 'DELETE',
+      }),
+  },
+
+  tasks: {
+    list: (workspaceId: string, query: Query = {}) =>
+      request<Page<Task>>(`${workspacePath(workspaceId, 'tasks')}${queryString(query)}`),
+    get: (workspaceId: string, id: string) =>
+      request<Task>(workspacePath(workspaceId, `tasks/${encodeURIComponent(id)}`)),
+    create: (workspaceId: string, input: TaskInput) =>
+      request<Task>(workspacePath(workspaceId, 'tasks'), {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    update: (workspaceId: string, id: string, input: Partial<TaskInput>) =>
+      request<Task>(workspacePath(workspaceId, `tasks/${encodeURIComponent(id)}`), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    updateStatus: (workspaceId: string, id: string, input: TaskStatusInput) =>
+      request<Task>(workspacePath(workspaceId, `tasks/${encodeURIComponent(id)}/status`), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    archive: (workspaceId: string, id: string) =>
+      request<Task>(workspacePath(workspaceId, `tasks/${encodeURIComponent(id)}/archive`), {
+        method: 'DELETE',
+      }),
+  },
+
+  activity: {
+    list: (workspaceId: string, query: Query = {}) =>
+      request<Page<ActivityEvent>>(`${workspacePath(workspaceId, 'activity')}${queryString(query)}`),
+  },
+
+  settings: {
+    get: (workspaceId: string) =>
+      request<WorkspaceSettings | null>(workspacePath(workspaceId, 'settings')),
+    update: (workspaceId: string, input: WorkspaceSettingsInput) =>
+      request<WorkspaceSettings>(workspacePath(workspaceId, 'settings'), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+  },
+
+  graphql: async <T>(query: string, variables: Record<string, unknown>) => {
+    const result = await request<{
+      data?: T;
+      errors?: Array<{ message: string }>;
+    }>('graphql', {
+      method: 'POST',
+      body: JSON.stringify({ query, variables }),
+    });
+    if (result.errors?.length) {
+      throw new ApiClientError(result.errors.map((error) => error.message).join('; '), 400);
+    }
+    if (!result.data) {
+      throw new ApiClientError('GraphQL response did not contain data', 502);
+    }
+    return result.data;
+  },
+};

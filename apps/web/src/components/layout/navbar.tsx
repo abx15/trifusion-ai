@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/auth-context';
 import { Button } from '@trifusion/ui';
 import { Badge } from '@trifusion/ui';
@@ -9,7 +10,18 @@ import { Layers, User, LogOut, ArrowRight } from 'lucide-react';
 
 export function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const personalWorkspace = user?.workspaces?.find((w) => w.type === 'PERSONAL') || user?.workspaces?.[0];
+  const handleLogout = async () => {
+    setLogoutError(null);
+    try {
+      await logout();
+      router.replace('/login');
+    } catch (error) {
+      setLogoutError(error instanceof Error ? error.message : 'Sign out failed.');
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -58,12 +70,13 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => logout()}
+                onClick={() => void handleLogout()}
                 title="Sign out"
                 className="text-muted-foreground hover:text-destructive"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
+              {logoutError && <p role="alert" className="absolute right-4 top-16 rounded-md border bg-background p-2 text-xs text-destructive">{logoutError}</p>}
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -84,4 +97,3 @@ export function Navbar() {
     </header>
   );
 }
-

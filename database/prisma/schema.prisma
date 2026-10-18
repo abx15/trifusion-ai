@@ -1,6 +1,9 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+
+  url = env("DATABASE_URL")
+
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -9,169 +12,303 @@ generator client {
 
 enum WorkspaceType {
   PERSONAL
+
   COMPANY
 }
 
 enum WorkspaceStatus {
   ACTIVE
+
   SUSPENDED
+
   ARCHIVED
 }
 
 enum WorkspaceRole {
   OWNER
+
   TEAM_ADMIN
+
   MEMBER
+
   VIEWER
 }
 
 enum WorkspaceMemberStatus {
   ACTIVE
+
   SUSPENDED
 }
 
 enum WorkspaceInvitationStatus {
   PENDING
+
   ACCEPTED
+
   REVOKED
+
   EXPIRED
 }
 
 enum UserStatus {
   ACTIVE
+
   SUSPENDED
+
   DELETED
 }
 
 enum PlatformStaffRoleType {
   SUPERADMIN
+
   PLATFORM_ADMIN
+
   ANALYST
+
   SUPPORT_AGENT
 }
 
 enum PlatformStaffStatus {
   ACTIVE
+
   INACTIVE
+
   SUSPENDED
 }
 
 enum AuditAction {
+  CLIENT_CREATE
+
+  CLIENT_UPDATE
+
+  CLIENT_ARCHIVE
+
+  CLIENT_RESTORE
+
+  PROJECT_CREATE
+
+  PROJECT_UPDATE
+
+  PROJECT_ARCHIVE
+
+  PROJECT_RESTORE
+
+  TASK_CREATE
+
+  TASK_UPDATE
+
+  TASK_STATUS_CHANGE
+
+  TASK_ARCHIVE
+
+  TASK_RESTORE
+
+  WORKSPACE_SETTINGS_UPDATE
+
   USER_SIGNUP
+
   USER_LOGIN
+
   USER_LOGOUT
+
   USER_PASSWORD_RESET
+
   USER_PASSWORD_FORGOT
+
   WORKSPACE_CREATE
+
   WORKSPACE_UPDATE
+
   WORKSPACE_ARCHIVE
+
   WORKSPACE_DELETE
+
   MEMBER_JOIN
+
   MEMBER_LEAVE
+
   MEMBER_REMOVE
+
   MEMBER_ROLE_CHANGE
+
   INVITATION_CREATE
+
   INVITATION_CANCEL
+
   INVITATION_ACCEPT
+
   INVITATION_REVOKE
+
   INVITATION_RESEND
+
   PLATFORM_STAFF_ROLE_CREATE
+
   PLATFORM_STAFF_ROLE_UPDATE
+
   PLATFORM_STAFF_ROLE_REVOKE
+
   PLATFORM_SUPPORT_ACCESS
+
   AUTH_RATE_LIMIT_HIT
+
   AUTH_LOGIN_FAILED
 }
 
 model User {
-  id                      String                   @id @default(uuid())
-  email                   String                   @unique
-  passwordHash            String?
-  idpSubject              String?                  @unique
-  isEmailVerified         Boolean                  @default(false)
-  status                  UserStatus               @default(ACTIVE)
-  profile                 UserProfile?
-  refreshTokens           RefreshToken[]
-  passwordResetTokens     PasswordResetToken[]
+  id String @id @default(uuid())
+
+  email String @unique
+
+  passwordHash String?
+
+  idpSubject String? @unique
+
+  isEmailVerified Boolean @default(false)
+
+  status UserStatus @default(ACTIVE)
+
+  profile UserProfile?
+
+  refreshTokens RefreshToken[]
+
+  passwordResetTokens PasswordResetToken[]
+
   emailVerificationTokens EmailVerificationToken[]
-  workspaceMemberships    WorkspaceMember[]
-  platformStaffRoles      PlatformStaffRole[]
-  ownedWorkspaces         Workspace[]              @relation("WorkspaceOwner")
-  sentInvitations         WorkspaceInvitation[]
-  auditLogs               AuditLog[]
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+
+  workspaceMemberships WorkspaceMember[]
+
+  platformStaffRoles PlatformStaffRole[]
+
+  ownedWorkspaces Workspace[] @relation("WorkspaceOwner")
+
+  sentInvitations WorkspaceInvitation[]
+
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  Client        Client[]
+  Project       Project[]
+  Task          Task[]
+  ActivityEvent ActivityEvent[]
 
   @@index([email])
   @@index([status])
 }
 
 model UserProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id String @id @default(uuid())
+
+  userId String @unique
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   firstName String
-  lastName  String
+
+  lastName String
+
   avatarUrl String?
-  timezone  String   @default("UTC")
-  locale    String   @default("en")
+
+  timezone String @default("UTC")
+
+  locale String @default("en")
+
   createdAt DateTime @default(now())
+
   updatedAt DateTime @updatedAt
 }
 
 model RefreshToken {
-  id         String   @id @default(uuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash  String   @unique
+  id String @id @default(uuid())
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
   deviceInfo String?
-  expiresAt  DateTime
-  isRevoked  Boolean  @default(false)
-  createdAt  DateTime @default(now())
+
+  expiresAt DateTime
+
+  isRevoked Boolean @default(false)
+
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model PasswordResetToken {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
+  id String @id @default(uuid())
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
   expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model EmailVerificationToken {
-  id        String    @id @default(uuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String    @unique
+  id String @id @default(uuid())
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String @unique
+
   expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
+
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Workspace {
-  id          String                @id @default(uuid())
-  name        String
-  slug        String                @unique
-  type        WorkspaceType         @default(PERSONAL)
-  status      WorkspaceStatus       @default(ACTIVE)
-  ownerId     String
-  owner       User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id])
-  members     WorkspaceMember[]
+  id String @id @default(uuid())
+
+  name String
+
+  slug String @unique
+
+  type WorkspaceType @default(PERSONAL)
+
+  status WorkspaceStatus @default(ACTIVE)
+
+  ownerId String
+
+  owner User @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+
+  members WorkspaceMember[]
+
   invitations WorkspaceInvitation[]
-  auditLogs   AuditLog[]
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+
+  auditLogs AuditLog[]
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  Client            Client[]
+  Project           Project[]
+  Task              Task[]
+  WorkspaceSettings WorkspaceSettings?
+  activityEvents    ActivityEvent[]
 
   @@index([ownerId])
   @@index([type])
@@ -179,15 +316,25 @@ model Workspace {
 }
 
 model WorkspaceMember {
-  id          String                @id @default(uuid())
+  id String @id @default(uuid())
+
   workspaceId String
-  workspace   Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        WorkspaceRole         @default(MEMBER)
-  status      WorkspaceMemberStatus @default(ACTIVE)
-  joinedAt    DateTime              @default(now())
-  createdAt   DateTime              @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role WorkspaceRole @default(MEMBER)
+
+  status WorkspaceMemberStatus @default(ACTIVE)
+
+  joinedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  tasks Task[] @relation("TaskAssignee")
 
   @@unique([workspaceId, userId])
   @@index([workspaceId])
@@ -197,39 +344,61 @@ model WorkspaceMember {
 }
 
 model WorkspaceInvitation {
-  id            String                    @id @default(uuid())
-  workspaceId   String
-  workspace     Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  email         String
-  role          WorkspaceRole             @default(MEMBER)
-  tokenHash     String                    @unique
-  inviterId     String
-  inviter       User                      @relation(fields: [inviterId], references: [id])
-  status        WorkspaceInvitationStatus @default(PENDING)
-  expiresAt     DateTime
-  acceptedAt    DateTime?
-  revokedAt     DateTime?
-  createdAt     DateTime                  @default(now())
+  id String @id @default(uuid())
 
+  workspaceId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  email String
+
+  role WorkspaceRole @default(MEMBER)
+
+  tokenHash String @unique
+
+  inviterId String
+
+  inviter User @relation(fields: [inviterId], references: [id])
+
+  status WorkspaceInvitationStatus @default(PENDING)
+
+  expiresAt DateTime
+
+  acceptedAt DateTime?
+
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([workspaceId, email])
   @@index([workspaceId])
   @@index([email])
   @@index([status])
   @@index([expiresAt])
-  @@unique([workspaceId, email])
 }
 
 model PlatformStaffRole {
-  id        String               @id @default(uuid())
-  userId    String
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      PlatformStaffRoleType
-  status    PlatformStaffStatus  @default(ACTIVE)
+  id String @id @default(uuid())
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role PlatformStaffRoleType
+
+  status PlatformStaffStatus @default(ACTIVE)
+
   grantedBy String?
-  grantedAt DateTime             @default(now())
+
+  grantedAt DateTime @default(now())
+
   revokedAt DateTime?
-  reason    String?
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, role])
   @@index([role])
@@ -237,19 +406,31 @@ model PlatformStaffRole {
 }
 
 model AuditLog {
-  id         String      @id @default(uuid())
-  actorId    String
-  actor      User        @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  action     AuditAction
+  id String @id @default(uuid())
+
+  actorId String
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  action AuditAction
+
   targetType String
-  targetId   String
+
+  targetId String
+
   workspaceId String?
-  workspace   Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  requestId  String?
-  metadata   Json?
-  ip         String?
-  userAgent  String?
-  createdAt  DateTime    @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  requestId String?
+
+  metadata Json?
+
+  ip String?
+
+  userAgent String?
+
+  createdAt DateTime @default(now())
 
   @@index([actorId])
   @@index([action])
@@ -257,4 +438,254 @@ model AuditLog {
   @@index([workspaceId])
   @@index([createdAt])
   @@index([requestId])
+}
+
+enum ClientStatus {
+  ACTIVE
+
+  ARCHIVED
+}
+
+enum ProjectStatus {
+  PLANNING
+
+  ACTIVE
+
+  ON_HOLD
+
+  COMPLETED
+
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+
+  IN_PROGRESS
+
+  REVIEW
+
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+
+  MEDIUM
+
+  HIGH
+
+  URGENT
+}
+
+enum EntityType {
+  WORKSPACE
+
+  CLIENT
+
+  PROJECT
+
+  TASK
+}
+
+enum ActivityAction {
+  CLIENT_CREATE
+
+  CLIENT_UPDATE
+
+  CLIENT_ARCHIVE
+
+  CLIENT_RESTORE
+
+  PROJECT_CREATE
+
+  PROJECT_UPDATE
+
+  PROJECT_ARCHIVE
+
+  PROJECT_RESTORE
+
+  TASK_CREATE
+
+  TASK_UPDATE
+
+  TASK_STATUS_CHANGE
+
+  TASK_ASSIGN
+
+  TASK_UNASSIGN
+
+  TASK_ARCHIVE
+
+  TASK_RESTORE
+
+  WORKSPACE_SETTINGS_UPDATE
+}
+
+model Client {
+  id String @id @default(uuid())
+
+  workspaceId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  name String
+
+  email String?
+
+  phone String?
+
+  website String?
+
+  address String?
+
+  notes String?
+
+  status ClientStatus @default(ACTIVE)
+
+  createdBy String
+
+  createdByUser User @relation(fields: [createdBy], references: [id])
+
+  projects Project[] @relation("ProjectClient")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, createdAt])
+}
+
+model Project {
+  id String @id @default(uuid())
+
+  workspaceId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  clientId String?
+
+  client Client? @relation("ProjectClient", fields: [workspaceId, clientId], references: [workspaceId, id])
+
+  name String
+
+  description String?
+
+  status ProjectStatus @default(PLANNING)
+
+  startDate DateTime?
+
+  endDate DateTime?
+
+  createdBy String
+
+  createdByUser User @relation(fields: [createdBy], references: [id])
+
+  tasks Task[] @relation("TaskProject")
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  @@unique([workspaceId, id])
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, clientId])
+  @@index([workspaceId, createdAt])
+}
+
+model Task {
+  id String @id @default(uuid())
+
+  workspaceId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id])
+
+  projectId String
+
+  project Project @relation("TaskProject", fields: [workspaceId, projectId], references: [workspaceId, id])
+
+  assigneeId String?
+
+  assignee WorkspaceMember? @relation("TaskAssignee", fields: [workspaceId, assigneeId], references: [workspaceId, userId])
+
+  title String
+
+  description String?
+
+  status TaskStatus @default(TODO)
+
+  priority TaskPriority @default(MEDIUM)
+
+  dueDate DateTime?
+
+  createdBy String
+
+  createdByUser User @relation(fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  deletedAt DateTime?
+
+  @@index([workspaceId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, assigneeId])
+  @@index([workspaceId, dueDate])
+  @@index([workspaceId, createdAt])
+}
+
+model ActivityEvent {
+  id String @id @default(uuid())
+
+  workspaceId String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  actorId String?
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  entityType EntityType
+
+  entityId String
+
+  action ActivityAction
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([workspaceId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model WorkspaceSettings {
+  id String @id @default(uuid())
+
+  workspaceId String @unique
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  companyName String?
+
+  companyEmail String?
+
+  settings Json?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  @@index([workspaceId])
 }

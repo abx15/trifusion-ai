@@ -22,7 +22,7 @@ TriFusion AI is an AI-powered Business Workspace designed for individuals, freel
            |                                                       |
            v                                                       v
 +-----------------------+                               +-----------------------+
-|  apps/web (Next.js)   |                               | apps/admin (Next.js)  |
+|  apps/web (Next.js)   |                               | apps/platform-admin (Next.js) |
 |  Customer Workspace   |                               | Platform Admin UI     |
 +-----------+-----------+                               +-----------+-----------+
             |                                                       |
@@ -101,6 +101,8 @@ TriFusion AI uses a **hybrid multi-tenant logical isolation** model within a sin
 4. **Platform Roles**:
    - `SUPERADMIN`, `PLATFORM_ADMIN`, `ANALYST`: Internal platform staff roles managed separately in platform tables; platform staff never receive default access to customer workspace data.
 
+For Phase 3, `MEMBER` can create and update workspace clients, projects, and tasks; `TEAM_ADMIN` and `OWNER` additionally archive/restore records and update settings; `VIEWER` is read-only. Resource access is workspace-wide until project-level ACLs are modeled.
+
 ---
 
 ## 5. Security & Isolation Architecture
@@ -123,3 +125,12 @@ TriFusion AI uses a **hybrid multi-tenant logical isolation** model within a sin
 - **Health Checks**: `/api/v1/health` providing readiness and liveness probes (checking Database and Redis connectivity).
 - **Structured Logging**: JSON-formatted logs with request correlation IDs (`x-request-id`).
 - **Error Tracking**: Centralized NestJS `HttpExceptionFilter` catching all errors and piping unhandled exceptions to Sentry while returning safe, sanitized error payloads to clients.
+- **Dashboard API**: REST and read-only GraphQL are adapters over the same NestJS domain services and workspace policies. GraphQL has bounded pagination, depth/complexity, resolver timeout, and production introspection restrictions.
+
+### Browser rendering and session boundary
+
+- `apps/web` and `apps/platform-admin` are rendering clients; NestJS remains authoritative for business rules and workspace/platform authorization.
+- Browser requests use a same-origin Next.js `/api/backend/*` proxy. The proxy holds app-specific bearer and refresh tokens in HttpOnly, Secure-in-production, SameSite=Strict cookies, injects Authorization only in server-to-server requests, and strips authentication tokens from browser responses. The platform console uses a distinct cookie namespace.
+- `API_INTERNAL_URL` is a server-only URL. `NEXT_PUBLIC_API_URL` must not contain credentials or other secrets.
+- Dashboard reads use one bounded GraphQL overview query plus cursor-paginated REST for workspace lists and mutations. TanStack Query keys include the authenticated user and workspace; authenticated requests use `no-store`, and auth changes clear client query state. No authenticated data is shared via a public Next.js cache.
+- Recharts is loaded on demand. Loading, empty, and error states are rendered from actual API outcomes; unavailable platform aggregate/configuration APIs are shown as deferred, not replaced with sample values.

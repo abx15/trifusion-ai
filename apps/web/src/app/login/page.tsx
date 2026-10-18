@@ -1,16 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import { Alert, AlertDescription, Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Input, Label, Spinner } from '@trifusion/ui';
+import { AlertCircle, LogIn } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import { useAuth } from '../../contexts/auth-context';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@trifusion/ui';
-import { Button } from '@trifusion/ui';
-import { Input } from '@trifusion/ui';
-import { Label } from '@trifusion/ui';
-import { Alert, AlertDescription } from '@trifusion/ui';
-import { Spinner } from '@trifusion/ui';
-import { LogIn, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -27,7 +22,13 @@ export default function LoginPage() {
 
     try {
       await login({ email, password });
-      router.push('/dashboard');
+      const nextPath = new URLSearchParams(window.location.search).get('next');
+      const safeNextPath =
+        nextPath !== null &&
+        nextPath.startsWith('/dashboard') &&
+        !nextPath.startsWith('//') &&
+        !nextPath.includes('\\');
+      router.replace(safeNextPath ? nextPath : '/dashboard');
     } catch (err: unknown) {
       const message =
         err && typeof err === 'object' && 'message' in err
@@ -122,4 +123,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

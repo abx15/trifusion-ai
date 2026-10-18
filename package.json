@@ -22,6 +22,7 @@
     "db:studio": "cd database/prisma && pnpm prisma studio",
     "db:seed": "pnpm --filter @trifusion/seeds seed",
     "db:reset": "cd database/prisma && pnpm prisma migrate reset",
+    "codegen:contracts": "node scripts/codegen-contracts.js",
     "prepare": "husky install"
   },
   "devDependencies": {
@@ -51,5 +52,11 @@
     "*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "@apollo/server": "^4.10.0",
+    "@nestjs/apollo": "^12.2.2",
+    "@nestjs/graphql": "^12.2.2",
+    "graphql": "16"
   }
 }
