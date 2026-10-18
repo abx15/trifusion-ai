@@ -5,6 +5,7 @@
   "description": "AI-powered Business Workspace for individuals, freelancers, digital agencies, and IT/service companies",
   "license": "UNLICENSED",
   "scripts": {
+    "postinstall": "pnpm --dir database/prisma prisma generate",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",

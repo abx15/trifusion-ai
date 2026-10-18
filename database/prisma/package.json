@@ -6,6 +6,7 @@
   "types": "./src/index.ts",
   "scripts": {
     "prisma": "prisma",
+    "postinstall": "prisma generate",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
