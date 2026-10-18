@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../lib/api-client';
 import type {
   AuthUserResponse,
@@ -21,27 +22,21 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<AuthUserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    const token = apiClient.getAccessToken();
-    if (!token) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const userData = await apiClient.auth.getMe();
       setUser(userData);
     } catch {
       setUser(null);
-      apiClient.setTokens(null);
+      queryClient.clear();
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     refreshUser();
@@ -51,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const response = await apiClient.auth.login(data);
-      apiClient.setTokens(response.tokens);
+      queryClient.clear();
       setUser(response.user);
     } finally {
       setIsLoading(false);
@@ -62,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const response = await apiClient.auth.register(data);
-      apiClient.setTokens(response.tokens);
+      queryClient.clear();
       setUser(response.user);
     } finally {
       setIsLoading(false);
@@ -73,10 +68,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       await apiClient.auth.logout();
-    } catch {
-      // ignore
     } finally {
       setUser(null);
+      queryClient.clear();
       setIsLoading(false);
     }
   };
@@ -105,4 +99,3 @@ export function useAuth() {
   }
   return context;
 }
-

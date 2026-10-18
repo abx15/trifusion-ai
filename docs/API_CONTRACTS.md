@@ -12,6 +12,7 @@
 - **Payload Format**: `application/json`
 - **Authentication**: Bearer Token in `Authorization` header (`Bearer <access_token>`)
 - **Tenant Context**: `X-Workspace-Id: <uuid>` header for workspace-scoped actions (verified server-side against authenticated user's memberships)
+- **Browser session**: The Next.js apps call their same-origin `/api/backend/*` proxy. It stores short-lived access and rotating refresh tokens in app-specific HttpOnly, SameSite=Strict cookies, adds the bearer token server-side, and never returns auth tokens to browser JavaScript. `API_INTERNAL_URL` is server-only; direct REST/GraphQL clients continue to use bearer tokens.
 - **Standard Error Response**:
   ```json
   {
@@ -180,3 +181,34 @@
     }
   }
   ```
+
+---
+
+## 4. Phase 3 Workspace Domain REST APIs
+
+All resource routes require a bearer access token and use the workspace path as a selection, never as proof of access. NestJS verifies current membership and role for each request. Unknown body/query fields are rejected.
+
+| Resource | Routes |
+|---|---|
+| Clients | `GET/POST /api/v1/workspaces/:workspaceId/clients`; `GET/PATCH /api/v1/workspaces/:workspaceId/clients/:clientId`; `DELETE .../:clientId/archive`; `PATCH .../:clientId/restore` |
+| Projects | `GET/POST /api/v1/workspaces/:workspaceId/projects`; `GET/PATCH /api/v1/workspaces/:workspaceId/projects/:projectId`; `DELETE .../:projectId/archive`; `PATCH .../:projectId/restore` |
+| Tasks | `GET/POST /api/v1/workspaces/:workspaceId/tasks`; `GET/PATCH /api/v1/workspaces/:workspaceId/tasks/:taskId`; `PATCH .../:taskId/status`; `DELETE .../:taskId/archive`; `PATCH .../:taskId/restore` |
+| Activity | `GET /api/v1/workspaces/:workspaceId/activity` |
+| Workspace settings | `GET/PATCH /api/v1/workspaces/:workspaceId/settings` |
+
+`POST`, `PATCH`, archive, restore, and settings mutations are rate-limited. Creation/update DTOs accept only documented fields; updates require at least one field. A settings read returns `null` until the workspace settings are first saved. Read/write permissions follow [`AUTHORIZATION_MATRIX.md`](./AUTHORIZATION_MATRIX.md); archival and settings changes require `TEAM_ADMIN` or `OWNER`.
+
+### Cursor pagination
+
+List endpoints return `{ "data": [], "nextCursor": "opaque-or-null", "hasMore": false, "total": 0, "limit": 20 }`. `limit` defaults to 20 and must be 1–50. Supplying a limit above 50 is rejected. Cursors are opaque, stable across equal sort values, and must be passed unchanged. Filters and sort keys are resource-specific allow-lists documented by the Swagger schemas; date range lower bounds cannot exceed upper bounds.
+
+### Phase 3 GraphQL (read-only)
+
+GraphQL is served at `POST /graphql` by NestJS. It uses the same domain services and workspace policy checks as REST; no client-supplied role or ownership field is accepted.
+
+- `workspaceOverview(workspaceId, filters)` — persisted project/task status counts, overdue tasks, and deadlines within seven days. The optional filter input allow-lists project ID, project/task statuses, active assignee ID, and ISO `createdAfter`/`createdBefore` bounds. Date bounds are inclusive and reversed ranges or malformed UUIDs are rejected. Project and task aggregates remain workspace-scoped.
+- `projects(workspaceId, limit!, cursor, status, clientId)` — cursor-paginated projects with client and task-count fields; `status: ARCHIVED` lists soft-archived projects.
+- `tasks(workspaceId, limit!, cursor, status, priority, projectId, projectStatus, assigneeId, includeArchived)` — cursor-paginated tasks with project/client and safe assignee details; archived records are excluded unless explicitly requested.
+- `recentActivity(workspaceId, limit!, cursor)` — cursor-paginated workspace activity.
+
+All lists require a page size of 1–50. Query depth is capped at 5, complexity at 100, resolver execution at 5 seconds, and requests are rate-limited. Related records are fetched in batched Prisma includes. Production disables introspection/playground and returns sanitized internal errors.

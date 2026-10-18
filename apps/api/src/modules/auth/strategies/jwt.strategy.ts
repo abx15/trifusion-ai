@@ -1,16 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { ConfigService } from '@nestjs/config';
-import { Request } from 'express';
 import { PolicyService } from '../../../common/policy/policy.service';
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  iat?: number;
-  exp?: number;
-}
+import { JwtPayload } from '../decorators/current-user.decorator';
+import { UserStatus } from '@prisma/client';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -19,15 +13,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly policyService: PolicyService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
-        (request: Request) => {
-          if (request && request.cookies) {
-            return request.cookies['accessToken'] || request.cookies['access_token'];
-          }
-          return null;
-        },
-      ]),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey:
         configService.get<string>('auth.secret') ||
@@ -40,8 +26,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Invalid token payload');
     }
 
-    // Server-side database verification: inactive, suspended, and deleted users are rejected on EVERY request.
     const user = await this.policyService.resolveUser(payload.sub);
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException(
+        `Account is ${user.status.toLowerCase()}. Access denied.`,
+      );
+    }
 
     return {
       id: user.id,

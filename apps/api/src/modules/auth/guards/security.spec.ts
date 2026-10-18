@@ -44,17 +44,17 @@ describe('Phase 2 Mandatory Security Suites', () => {
     return {
       switchToHttp: () => ({
         getRequest: () => req,
-        getResponse: () => ({}),
-        getNext: () => ({}),
+        getResponse: () => ({} as any),
+        getNext: () => (() => {}) as any,
       }),
-      getHandler: () => handler || (() => {}),
-      getClass: () => targetClass || class TestClass {},
-      getArgs: () => [],
-      getArgByIndex: () => ({}),
+      getHandler: () => (handler || (() => {})) as any,
+      getClass: () => (targetClass || class TestClass {}) as any,
+      getArgs: () => [] as any[],
+      getArgByIndex: () => ({} as any),
       switchToRpc: () => ({}) as any,
       switchToWs: () => ({}) as any,
-      getType: () => 'http',
-    };
+      getType: () => 'http' as any,
+    } as ExecutionContext;
   }
 
   // =========================================================================
@@ -108,7 +108,7 @@ describe('Phase 2 Mandatory Security Suites', () => {
       await workspaceGuard.canActivate(ctx);
 
       // Verify that request.workspace.role reflects DB, ignoring client body
-      expect(req['workspace'].role).toBe(WorkspaceRole.VIEWER);
+      expect((req as any)['workspace'].role).toBe(WorkspaceRole.VIEWER);
     });
   });
 
@@ -148,7 +148,7 @@ describe('Phase 2 Mandatory Security Suites', () => {
         email: 'active@example.com',
       });
       expect(res.id).toBe('user-active-id');
-      expect(res.status).toBe(UserStatus.ACTIVE);
+      expect((res as any).status).toBe(UserStatus.ACTIVE);
     });
   });
 

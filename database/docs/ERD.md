@@ -155,3 +155,79 @@ erDiagram
 | `Workspace` | `WorkspaceInvitation`| `1 : N` | `CASCADE` | Invitations to a deleted workspace are immediately purged. |
 | `Workspace` | `AuditLog` | `1 : N` | `SET NULL` | Audit records must remain intact for compliance even if workspace is deleted. |
 | `User` (`actorId`) | `AuditLog` | `1 : N` | `CASCADE` | GDPR/compliance hard-delete cascading for test actors (in production, soft-delete is enforced). |
+
+---
+
+## 3. Phase 3 Workspace Domain
+
+```mermaid
+erDiagram
+    Workspace ||--o{ Client : owns
+    Workspace ||--o{ Project : owns
+    Workspace ||--o{ Task : owns
+    Workspace ||--o{ ActivityEvent : records
+    Workspace ||--|| WorkspaceSettings : configures
+    Workspace ||--o{ WorkspaceMember : contains
+    User ||--o{ Client : creates
+    User ||--o{ Project : creates
+    User ||--o{ Task : creates
+    User o|--o{ ActivityEvent : acts
+    Client o|--o{ Project : serves
+    Project ||--o{ Task : groups
+    WorkspaceMember o|--o{ Task : assignee
+
+    Client {
+        string id PK
+        string workspaceId FK
+        string createdBy FK
+        string name
+        string email
+        string phone
+        string status
+        datetime deletedAt
+    }
+    Project {
+        string id PK
+        string workspaceId FK
+        string clientId FK
+        string createdBy FK
+        string name
+        string status
+        datetime startDate
+        datetime endDate
+        datetime deletedAt
+    }
+    Task {
+        string id PK
+        string workspaceId FK
+        string projectId FK
+        string assigneeId FK
+        string createdBy FK
+        string title
+        string status
+        string priority
+        datetime dueDate
+        datetime deletedAt
+    }
+    ActivityEvent {
+        string id PK
+        string workspaceId FK
+        string actorId FK
+        string entityType
+        string entityId
+        string action
+        json metadata
+        datetime createdAt
+    }
+    WorkspaceSettings {
+        string id PK
+        string workspaceId FK
+        string companyName
+        string companyEmail
+        json settings
+    }
+```
+
+`Project(workspaceId, clientId)` references `Client(workspaceId, id)`. `Task(workspaceId, projectId)` references `Project(workspaceId, id)` and `Task(workspaceId, assigneeId)` references `WorkspaceMember(workspaceId, userId)`. Assignment additionally requires an active membership in the domain service.
+
+Every domain table has workspace and workload indexes. Soft-archiving sets `deletedAt` and retains child history; active tasks block project archival, and active projects block client archival. See [`DATABASE_DESIGN.md`](../../docs/DATABASE_DESIGN.md) for allowed status transitions and retention rules.

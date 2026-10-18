@@ -207,3 +207,32 @@ The database design provides high-performance relational integrity, strict multi
 - Production migrations must always be non-destructive and backwards-compatible.
 - Seeds under `database/seeds/seed.ts` provide reproducible test scenarios with dummy workspaces and authenticated mock accounts. Seeds refuse to execute in production.
 
+---
+
+## 7. Phase 3 Domain Schema
+
+`Client`, `Project`, `Task`, `ActivityEvent`, and `WorkspaceSettings` are workspace-owned. Their Prisma schema and visual ERD are maintained together in [`database/docs/ERD.md`](../database/docs/ERD.md).
+
+| Model | Lifecycle and fields | Workspace constraints |
+|---|---|---|
+| `Client` | Name, contact fields, `ACTIVE` / `ARCHIVED`, creator, timestamps, nullable `deletedAt` | Workspace/status and workspace/createdAt indexes |
+| `Project` | Optional client, name, description, `PLANNING` / `ACTIVE` / `ON_HOLD` / `COMPLETED` / `ARCHIVED`, dates, creator, timestamps, nullable `deletedAt` | Composite `(workspaceId, clientId)` foreign key; workspace/status, workspace/client, workspace/createdAt indexes |
+| `Task` | Required project, optional assignee, title, description, `TODO` / `IN_PROGRESS` / `REVIEW` / `DONE`, priority, due date, creator, timestamps, nullable `deletedAt` | Composite `(workspaceId, projectId)` and `(workspaceId, assigneeId)` foreign keys; workspace/status, workspace/project, workspace/assignee, workspace/dueDate, workspace/createdAt indexes |
+| `ActivityEvent` | Nullable actor, entity type/id, action, safe metadata, timestamp | Workspace foreign key; workspace/createdAt and entity indexes |
+| `WorkspaceSettings` | Per-workspace company name/email and JSON configuration | Unique workspace ID and workspace foreign key |
+
+The Task assignee foreign key points to `(WorkspaceMember.workspaceId, WorkspaceMember.userId)`; the domain service also verifies the membership is `ACTIVE` when assigning. Service validation and relational constraints both reject cross-workspace references.
+
+### Status transitions
+
+- Project: `PLANNING -> ACTIVE`; `ACTIVE -> ON_HOLD | COMPLETED`; `ON_HOLD -> ACTIVE`. `COMPLETED` has no normal transition. Archiving uses a separate admin-only operation and is allowed only after active tasks are archived; restoring sets the project to `ACTIVE`.
+- Task: `TODO -> IN_PROGRESS`; `IN_PROGRESS -> REVIEW | TODO`; `REVIEW -> DONE | IN_PROGRESS`; `DONE -> TODO | IN_PROGRESS` (explicit reopen). Task creation starts at `TODO`.
+- Client: `ACTIVE -> ARCHIVED` and restore to `ACTIVE`. A client cannot be archived while it has a non-archived project.
+
+Archiving is a soft delete: `deletedAt` is set, rows and their history are retained, and child records are never cascaded. Projects cannot be archived while they have non-archived tasks. Hard deletion/retention cleanup is outside Phase 3.
+
+Every mutation writes its ActivityEvent and corresponding domain AuditLog in the same database transaction. The request correlation ID is included in ActivityEvent metadata and `AuditLog.requestId`; metadata contains operation/status identifiers only, not client contact details or task descriptions.
+
+### Neon connections and safe testing
+
+Runtime Prisma queries use pooled `DATABASE_URL`; migrations use direct `DIRECT_URL`. Runtime URLs receive bounded defaults of `connection_limit=5`, `pool_timeout=10`, and `connect_timeout=10` when not specified. Integration tests require both `DATABASE_URL_TEST` and `DIRECT_URL_TEST` and do not fall back to runtime URLs. These values must point to a disposable, non-production Neon branch.

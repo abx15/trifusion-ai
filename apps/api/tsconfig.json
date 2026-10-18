@@ -26,5 +26,6 @@
       "@trifusion/utils": ["../../packages/utils/src"],
       "@trifusion/database": ["../../database/prisma/src"]
     }
-  }
+  },
+  "exclude": ["dist", "node_modules"]
 }

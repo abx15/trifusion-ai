@@ -9,7 +9,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -80,10 +80,20 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "node_modules/.pnpm/(?!(?:@nestjs\\+[^@/]+|@graphql-tools\\+[^@/]+|graphql|@apollo\\+server)@)",
+      "node_modules/(?!\\.pnpm|@nestjs/|@graphql-tools/|graphql|@apollo/server)"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testTimeout": 30000,
+    "moduleNameMapper": {
+      "^@trifusion/utils$": "<rootDir>/../../../packages/utils/src/index.ts",
+      "^@trifusion/contracts$": "<rootDir>/../../../packages/contracts/src/index.ts",
+      "^@trifusion/database$": "<rootDir>/../../../database/prisma/src/index.ts"
+    }
   }
 }

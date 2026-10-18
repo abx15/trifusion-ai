@@ -76,6 +76,77 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+export type ClientStatus = 'ACTIVE' | 'ARCHIVED';
+export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'ARCHIVED';
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+export interface Client {
+  id: string;
+  workspaceId: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  status: ClientStatus;
+  createdBy: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  deletedAt?: string | Date | null;
+}
+
+export interface Project {
+  id: string;
+  workspaceId: string;
+  clientId?: string | null;
+  name: string;
+  description?: string | null;
+  status: ProjectStatus;
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
+  createdBy: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  deletedAt?: string | Date | null;
+}
+
+export interface Task {
+  id: string;
+  workspaceId: string;
+  projectId: string;
+  assigneeId?: string | null;
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate?: string | Date | null;
+  createdBy: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  deletedAt?: string | Date | null;
+}
+
+export interface ActivityEvent {
+  id: string;
+  workspaceId: string;
+  actorId?: string | null;
+  entityType: string;
+  entityId: string;
+  action: string;
+  metadata?: unknown;
+  createdAt: string | Date;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  total: number;
+  limit: number;
+}
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;

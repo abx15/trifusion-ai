@@ -43,6 +43,20 @@ Workspace permissions apply strictly within the boundaries of a specific `worksp
 | **Audit Logs** | | | | |
 | View workspace audit logs | ✅ | ✅ | ❌ | ❌ |
 
+### Clients, Projects, Tasks & Workspace Settings
+
+| Capability / Action | `OWNER` | `TEAM_ADMIN` | `MEMBER` | `VIEWER` |
+|---|:---:|:---:|:---:|:---:|
+| Read clients, projects, tasks, activity, and settings | ✅ | ✅ | ✅ | ✅ |
+| Create clients, projects, and tasks | ✅ | ✅ | ✅ | ❌ |
+| Update clients, projects, and tasks | ✅ | ✅ | ✅ | ❌ |
+| Assign a task to an active member of the same workspace | ✅ | ✅ | ✅ | ❌ |
+| Change project/task status using an allowed transition | ✅ | ✅ | ✅ | ❌ |
+| Archive or restore clients, projects, and tasks | ✅ | ✅ | ❌ | ❌ |
+| Update workspace settings | ✅ | ✅ | ❌ | ❌ |
+
+Resource access in this phase is workspace-wide; project-specific member ACLs are not modeled. Every reference and query is constrained to the authenticated workspace. A task can only be assigned to an active workspace member.
+
 ### Guardrail Notes:
 1. *(1) Last Owner Protection:* A workspace must always maintain at least one active `OWNER`. An `OWNER` cannot demote themselves or be removed if they are the sole owner of the workspace.
 2. *(2) Team Admin Boundaries:* `TEAM_ADMIN` may only remove or update roles of `MEMBER` or `VIEWER`. They cannot modify or remove an `OWNER` or another `TEAM_ADMIN`.

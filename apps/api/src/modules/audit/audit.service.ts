@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { AuditAction, Prisma } from '@prisma/client';
+import { ActivityAction, AuditAction, EntityType, Prisma } from '@prisma/client';
 
 export interface LogAuditOptions {
   actorId: string;
@@ -12,6 +12,20 @@ export interface LogAuditOptions {
   ip?: string | null;
   userAgent?: string | null;
   metadata?: Record<string, unknown> | null;
+}
+
+export interface DomainChangeOptions {
+  actorId: string;
+  workspaceId: string;
+  entityType: EntityType;
+  entityId: string;
+  activityAction: ActivityAction;
+  auditAction: AuditAction;
+  targetType: string;
+  requestId?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 const SENSITIVE_KEYS = new Set([
@@ -54,6 +68,29 @@ export class AuditLogService {
   private readonly logger = new Logger(AuditLogService.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  async logInTransaction(
+    tx: Prisma.TransactionClient,
+    options: LogAuditOptions,
+  ): Promise<void> {
+    const sanitizedMetadata = options.metadata
+      ? (redactSensitiveData(options.metadata) as Prisma.InputJsonValue)
+      : Prisma.JsonNull;
+
+    await tx.auditLog.create({
+      data: {
+        actorId: options.actorId,
+        action: options.action,
+        targetType: options.targetType,
+        targetId: options.targetId,
+        workspaceId: options.workspaceId ?? null,
+        requestId: options.requestId ?? null,
+        ip: options.ip ?? null,
+        userAgent: options.userAgent ?? null,
+        metadata: sanitizedMetadata,
+      },
+    });
+  }
 
   /**
    * Append-only audit logger. Never throws to prevent disrupting core operations.
@@ -129,4 +166,33 @@ export class AuditLogService {
 
     return { total, logs, limit, offset };
   }
+}
+
+export async function recordDomainChange(
+  tx: Prisma.TransactionClient,
+  auditLogService: AuditLogService,
+  options: DomainChangeOptions,
+): Promise<void> {
+  await tx.activityEvent.create({
+    data: {
+      workspaceId: options.workspaceId,
+      actorId: options.actorId,
+      entityType: options.entityType,
+      entityId: options.entityId,
+      action: options.activityAction,
+      metadata: options.requestId ? { requestId: options.requestId } : Prisma.JsonNull,
+    },
+  });
+
+  await auditLogService.logInTransaction(tx, {
+    actorId: options.actorId,
+    action: options.auditAction,
+    targetType: options.targetType,
+    targetId: options.entityId,
+    workspaceId: options.workspaceId,
+    requestId: options.requestId,
+    ip: options.ip,
+    userAgent: options.userAgent,
+    metadata: options.metadata,
+  });
 }
