@@ -12,6 +12,7 @@ import { ProjectStatus, TaskPriority, TaskStatus } from '@prisma/client';
 import { ProjectsService } from '../projects/projects.service';
 import { TasksService } from '../tasks/tasks.service';
 import { ActivityService } from '../activity/activity.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { Project, ProjectConnection } from '../projects/entities/project.entity';
 import { Task, TaskAssignee, TaskConnection } from '../tasks/entities/task.entity';
 import { ActivityEventConnection } from '../activity/entities/activity-event.entity';
@@ -34,6 +35,7 @@ export class GraphQLResolver {
     private readonly projectsService: ProjectsService,
     private readonly tasksService: TasksService,
     private readonly activityService: ActivityService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   private getCurrentUser(context: GraphQLContext): { id: string; email: string } {
@@ -108,6 +110,28 @@ export class GraphQLResolver {
   ) {
     const user = this.getCurrentUser(context);
     return this.projectsService.getWorkspaceOverview(workspaceId, user.id, filters);
+  }
+
+  @Query(() => Object)
+  async workspaceAnalytics(
+    @Context() context: GraphQLContext,
+    @Args('workspaceId') workspaceId: string,
+    @Args('projectId', { nullable: true }) projectId?: string,
+    @Args('projectStatus', { type: () => ProjectStatus, nullable: true }) projectStatus?: ProjectStatus,
+    @Args('assigneeId', { nullable: true }) assigneeId?: string,
+    @Args('taskStatus', { type: () => TaskStatus, nullable: true }) taskStatus?: TaskStatus,
+    @Args('startDate', { nullable: true }) startDate?: string,
+    @Args('endDate', { nullable: true }) endDate?: string,
+  ) {
+    const user = this.getCurrentUser(context);
+    return this.analyticsService.getWorkspaceOverview(workspaceId, user.id, {
+      projectId,
+      projectStatus,
+      assigneeId,
+      taskStatus,
+      startDate,
+      endDate,
+    });
   }
 
 }
