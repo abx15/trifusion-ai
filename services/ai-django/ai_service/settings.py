@@ -6,15 +6,34 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+NODE_ENV = os.environ.get('NODE_ENV', 'development')
 DEFAULT_DEV_KEY = 'trifusion-ai-django-dev-insecure-secret-key-replace-in-production'
+DEFAULT_SERVICE_SECRET = 'trifusion-ai-dev-secret-change-me'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', DEFAULT_DEV_KEY)
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() in ('true', '1', 'yes')
+DEBUG = os.environ.get(
+    'DJANGO_DEBUG',
+    'False' if NODE_ENV == 'production' else 'True',
+).lower() in ('true', '1', 'yes')
+AI_SERVICE_SHARED_SECRET = os.environ.get('AI_SERVICE_SHARED_SECRET', DEFAULT_SERVICE_SECRET)
 
-if not DEBUG and SECRET_KEY == DEFAULT_DEV_KEY:
-    raise ValueError("DJANGO_SECRET_KEY must be set securely in production.")
+if NODE_ENV == 'production' and DEBUG:
+    raise ValueError("DJANGO_DEBUG must be False in production.")
+
+if not DEBUG:
+    if SECRET_KEY == DEFAULT_DEV_KEY:
+        raise ValueError("DJANGO_SECRET_KEY must be set securely when DJANGO_DEBUG=False.")
+    if AI_SERVICE_SHARED_SECRET == DEFAULT_SERVICE_SECRET:
+        raise ValueError("AI_SERVICE_SHARED_SECRET must be set securely when DJANGO_DEBUG=False.")
 
 DEFAULT_ALLOWED_HOSTS = 'localhost,127.0.0.1,0.0.0.0'
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get('DJANGO_ALLOWED_HOSTS', DEFAULT_ALLOWED_HOSTS).split(',') if host.strip()]
+if not DEBUG and (not ALLOWED_HOSTS or '*' in ALLOWED_HOSTS):
+    raise ValueError("DJANGO_ALLOWED_HOSTS must list explicit hostnames when DJANGO_DEBUG=False.")
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('DJANGO_CORS_ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+]
 
 INSTALLED_APPS = [
     'django.contrib.contenttypes',
@@ -53,7 +72,7 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_EXPOSE_HEADERS = ['X-Request-Id']
 
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
@@ -68,5 +87,4 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [],
 }
 
-AI_SERVICE_SHARED_SECRET = os.environ.get('AI_SERVICE_SHARED_SECRET', 'trifusion-ai-dev-secret-change-me')
 AI_SERVICE_TOKEN_TTL_SECONDS = int(os.environ.get('AI_SERVICE_TOKEN_TTL_SECONDS', '180'))
