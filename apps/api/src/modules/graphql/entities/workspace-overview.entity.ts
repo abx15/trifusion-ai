@@ -12,13 +12,13 @@ export class StatusCount {
 
 @ObjectType()
 export class WorkspaceOverview {
-  @Field()
+  @Field(() => String)
   workspaceId!: string;
 
-  @Field()
+  @Field(() => String)
   workspaceName!: string;
 
-  @Field()
+  @Field(() => String)
   role!: string;
 
   @Field(() => Int)
