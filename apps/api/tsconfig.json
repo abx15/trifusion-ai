@@ -19,6 +19,8 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "noEmit": false,
+    "noEmitOnError": false,
+    "rootDir": "./src",
     "paths": {
       "@/*": ["src/*"],
       "@trifusion/contracts": ["../../packages/contracts/src"],
@@ -27,5 +29,6 @@
       "@trifusion/database": ["../../database/prisma/src"]
     }
   },
+  "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"]
 }
