@@ -32,7 +32,9 @@ class TaskSuggestionsRequestSerializer(BaseAIRequestSerializer):
 
 class WorkspaceAssistantRequestSerializer(BaseAIRequestSerializer):
     question = serializers.CharField(required=True)
-    retrieved_context = serializers.ListField(required=False, child=serializers.DictField(), default=list)
+    retrieved_context = serializers.ListField(
+        required=False, child=serializers.DictField(), default=list
+    )
 
 
 class AIResponseSerializer(serializers.Serializer):

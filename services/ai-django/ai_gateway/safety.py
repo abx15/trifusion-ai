@@ -57,14 +57,6 @@ def validate_tool_name(tool_name: str | None) -> str:
     return normalized
 
 
-def check_quota(quota_store: dict[str, dict[str, int]], user_id: str, workspace_id: str, limit: int = 120) -> None:
-    key = f"{workspace_id}:{user_id}"
-    entry = quota_store.setdefault(key, {"count": 0})
-    if entry["count"] >= limit:
-        raise PermissionError("Quota exceeded for this workspace and user")
-    entry["count"] += 1
-
-
 def build_safe_prompt(instructions: str, data: str) -> str:
     safe_data = redact_sensitive_content(sanitize_text(data))
     return (

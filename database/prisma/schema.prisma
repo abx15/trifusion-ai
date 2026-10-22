@@ -194,6 +194,12 @@ model User {
   Task          Task[]
   ActivityEvent ActivityEvent[]
 
+  notifications Notification[]
+
+  notificationPreferences NotificationPreference[]
+
+  ownedFiles FileAsset[] @relation("FileOwner")
+
   @@index([email])
   @@index([status])
 }
@@ -309,6 +315,10 @@ model Workspace {
   Task              Task[]
   WorkspaceSettings WorkspaceSettings?
   activityEvents    ActivityEvent[]
+  notifications     Notification[]
+  notificationPreferences NotificationPreference[]
+  fileAssets        FileAsset[]
+  jobRecords        JobRecord[]
 
   @@index([ownerId])
   @@index([type])
@@ -688,4 +698,79 @@ model WorkspaceSettings {
   updatedAt DateTime @updatedAt
 
   @@index([workspaceId])
+}
+
+
+model Notification {
+  id String @id @default(uuid())
+  recipientId String
+  recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type String
+  payload Json
+  dedupeKey String?
+  readAt DateTime?
+  createdAt DateTime @default(now())
+  @@unique([recipientId, dedupeKey])
+  @@index([recipientId])
+  @@index([recipientId, readAt])
+  @@index([workspaceId])
+}
+
+model NotificationPreference {
+  id String @id @default(uuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  channel String
+  type String
+  enabled Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, workspaceId, channel, type])
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model FileAsset {
+  id String @id @default(uuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ownerId String
+  owner User @relation("FileOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  entityType String?
+  entityId String?
+  objectKey String @unique
+  originalName String
+  contentType String
+  size Int
+  checksum String?
+  visibility String @default("private")
+  scanStatus String @default("PENDING")
+  status String @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  @@index([workspaceId])
+  @@index([workspaceId, scanStatus])
+  @@index([ownerId])
+}
+
+model JobRecord {
+  id String @id @default(uuid())
+  jobId String @unique
+  workspaceId String?
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type String
+  status String
+  idempotencyKey String?
+  attempts Int @default(0)
+  lastError String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId])
+  @@index([status])
 }

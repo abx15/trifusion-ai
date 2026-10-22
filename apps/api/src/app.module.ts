@@ -22,6 +22,10 @@ import { ActivityModule } from './modules/activity/activity.module';
 import { WorkspaceSettingsModule } from './modules/workspace-settings/workspace-settings.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { GraphQLModule } from './modules/graphql/graphql.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { FilesModule } from './modules/files/files.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
+import { JobsModule } from './modules/jobs/jobs.module';
 import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
 
 @Module({
@@ -51,6 +55,10 @@ import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard
     ActivityModule,
     WorkspaceSettingsModule,
     AnalyticsModule,
+    NotificationsModule,
+    FilesModule,
+    RealtimeModule,
+    JobsModule,
     GraphQLModule,
   ],
   controllers: [],

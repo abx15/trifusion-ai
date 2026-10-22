@@ -47,7 +47,9 @@ def create_service_token(payload: dict[str, Any]) -> str:
     encoded_header = _b64url_encode(b'{"alg":"HS256","typ":"JWT"}')
     encoded_payload = _b64url_encode(json.dumps(token_payload, separators=(",", ":")).encode())
     signing_input = f"{encoded_header}.{encoded_payload}".encode("ascii")
-    signature = hmac.new(SERVICE_TOKEN_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    signature = hmac.new(
+        SERVICE_TOKEN_SECRET.encode("utf-8"), signing_input, hashlib.sha256
+    ).digest()
     return f"{encoded_header}.{encoded_payload}.{_b64url_encode(signature)}"
 
 

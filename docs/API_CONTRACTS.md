@@ -226,3 +226,256 @@ Phase 5 introduces the workspace analytics service used by both REST and GraphQL
 - `GET /api/v1/platform/analytics/overview` — platform aggregate summary, restricted to `ANALYST`, `PLATFORM_ADMIN`, and `SUPERADMIN`.
 
 All analytics responses include a standard envelope with `reportingPeriod`, `filters`, `generatedAt`, `dataFreshness`, and `metricVersion`. Date ranges are ISO-8601 and must not exceed 365 days. Invalid or reversed ranges are rejected. Empty ranges return zero counts, never estimated values.
+
+---
+
+## 5. Phase 6 AI Service Contract (Internal)
+
+**IMPORTANT:** The Django AI service is **never exposed to the browser**. All AI requests flow through NestJS, which authenticates, authorizes, and then calls Django via internal HTTP with signed service tokens.
+
+### Service-to-Service Authentication
+
+**Method:** Signed JWT-like tokens using HMAC-SHA256
+
+**Token Creation (NestJS):**
+- Secret: `AI_SERVICE_SHARED_SECRET` (must match in both services)
+- Issuer: `trifusion-ai` (configurable via `AI_SERVICE_ISSUER`)
+- Audience: `ai-django` (configurable via `AI_SERVICE_AUDIENCE`)
+- TTL: 180 seconds (3 minutes, configurable via `AI_SERVICE_TOKEN_TTL_SECONDS`)
+- Payload includes: `workspace_id`, `user_id`, `role`, `allowed_scopes`, `request_id`, `nonce` (jti)
+
+**Token Verification (Django):**
+- Signature integrity (HMAC-SHA256)
+- Issuer and audience validation
+- Expiry and not-before checks
+- Required scope validation
+- Replay protection via nonce
+
+### Django AI Endpoints (Private, Versioned)
+
+All endpoints require:
+- Header: `Authorization: Bearer <signed-service-token>`
+- Header: `X-Request-Id: <correlation-id>` (optional, propagated from NestJS)
+- Content-Type: `application/json`
+
+#### `POST /v1/ai/project-summary`
+- **Summary:** Generate a project summary from authorized task and activity data.
+- **Request Body:**
+  ```json
+  {
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "project_id": "uuid",
+    "tasks": [
+      { "id": "uuid", "title": "Task 1", "status": "DONE", "priority": "HIGH" }
+    ],
+    "activity": [
+      { "id": "uuid", "action": "TASK_CREATE", "timestamp": "ISO-8601" }
+    ]
+  }
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "status": "ok",
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "generated_at": "ISO-8601",
+    "source_scope": "workspace:{id}",
+    "provider": "openai",
+    "model": "gpt-4",
+    "output": {
+      "facts": [
+        { "record_id": "uuid", "statement": "Task 1 is completed" }
+      ],
+      "summary": "Project summary generated from authorized task and activity context only.",
+      "generated_suggestions": [
+        "Review overdue or blocked tasks before the next working session."
+      ]
+    }
+  }
+  ```
+
+#### `POST /v1/ai/weekly-report`
+- **Summary:** Generate a weekly report from real analytics data.
+- **Request Body:**
+  ```json
+  {
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "analytics": {
+      "activeProjects": 14,
+      "overdueTasks": 3,
+      "tasksCompleted": 45
+    },
+    "reporting_period": {
+      "start": "2026-10-01T00:00:00.000Z",
+      "end": "2026-10-07T23:59:59.999Z"
+    }
+  }
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "status": "ok",
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "generated_at": "ISO-8601",
+    "source_scope": "workspace:{id}",
+    "provider": "openai",
+    "model": "gpt-4",
+    "output": {
+      "reporting_period": {
+        "start": "2026-10-01T00:00:00.000Z",
+        "end": "2026-10-07T23:59:59.999Z"
+      },
+      "facts": [
+        { "metric": "activeProjects", "value": 14 },
+        { "metric": "overdueTasks", "value": 3 }
+      ],
+      "summary": "Report built from the provided analytics snapshot and reporting period."
+    }
+  }
+  ```
+
+#### `POST /v1/ai/task-suggestions`
+- **Summary:** Return next-step suggestions based on task and project context.
+- **Request Body:**
+  ```json
+  {
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "task_id": "uuid",
+    "task": {
+      "id": "uuid",
+      "title": "Task title",
+      "status": "IN_PROGRESS",
+      "priority": "HIGH"
+    },
+    "project": {
+      "id": "uuid",
+      "name": "Project name",
+      "status": "ACTIVE"
+    }
+  }
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "status": "ok",
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "generated_at": "ISO-8601",
+    "source_scope": "workspace:{id}",
+    "provider": "openai",
+    "model": "gpt-4",
+    "output": {
+      "task_id": "uuid",
+      "facts": [
+        { "field": "status", "value": "IN_PROGRESS" },
+        { "field": "priority", "value": "HIGH" }
+      ],
+      "suggestions": [
+        "Confirm current assignee and dependencies before widening scope.",
+        "Record the next blocker and expected completion date."
+      ]
+    }
+  }
+  ```
+
+#### `POST /v1/ai/assistant`
+- **Summary:** Answer workspace questions only from authorized data.
+- **Request Body:**
+  ```json
+  {
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "question": "What are the overdue tasks?",
+    "retrieved_context": [
+      { "id": "uuid", "type": "task", "title": "Task 1", "status": "TODO", "dueDate": "2026-10-15" }
+    ]
+  }
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "status": "ok",
+    "workspace_id": "uuid",
+    "user_id": "uuid",
+    "request_id": "uuid",
+    "generated_at": "ISO-8601",
+    "source_scope": "workspace:{id}",
+    "provider": "openai",
+    "model": "gpt-4",
+    "output": {
+      "answer": "Answer is based strictly on the authorized context supplied by NestJS.",
+      "references": [
+        { "id": "uuid", "type": "task", "title": "Task 1" }
+      ],
+      "question": "What are the overdue tasks?"
+    }
+  }
+  ```
+
+#### `POST /v1/ai/assistant/stream`
+- **Summary:** Stream assistant response via SSE.
+- **Request Body:** Same as `/v1/ai/assistant`
+- **Response:** Server-Sent Events (SSE) stream
+- **Event Format:**
+  ```
+  data: {"type": "token", "content": "Hello"}
+  data: {"type": "token", "content": " world"}
+  data: {"type": "done", "output": {...}}
+  ```
+
+### Standard Error Response
+
+```json
+{
+  "error": "Error message",
+  "code": "ERROR_CODE"
+}
+```
+
+**Common Error Codes:**
+- `MISSING_TOKEN`: No Authorization header provided
+- `INVALID_TOKEN`: Token signature verification failed
+- `EXPIRED_TOKEN`: Token has expired
+- `MISSING_SCOPE`: Required scope not in allowed_scopes
+- `QUOTA_EXCEEDED`: User/workspace quota exceeded
+- `VALIDATION_ERROR`: Request schema validation failed
+- `WORKSPACE_MISMATCH`: workspace_id in token doesn't match request
+- `PROVIDER_ERROR`: AI provider API error
+- `TIMEOUT`: Request to provider timed out
+
+### Timeout and Retry Rules
+
+- **Request timeout:** 30 seconds per call
+- **Retry:** Only idempotent calls (weekly report, project summary)
+- **Backoff:** Exponential with jitter (1s, 2s, 4s)
+- **Max retries:** 3
+- **Circuit breaker:** Opens after 5 consecutive failures, reopens after 60 seconds
+
+### NestJS to Django Endpoints
+
+NestJS exposes the following endpoints to the browser, which internally call Django:
+
+- `POST /api/v1/workspaces/:workspaceId/ai/project-summary`
+- `POST /api/v1/workspaces/:workspaceId/ai/weekly-report`
+- `POST /api/v1/workspaces/:workspaceId/ai/task-suggestions`
+- `POST /api/v1/workspaces/:workspaceId/ai/assistant`
+- `POST /api/v1/workspaces/:workspaceId/ai/assistant/stream`
+
+All require:
+- Authentication (JWT or session)
+- Workspace membership verification
+- Role-based authorization (via PolicyService)
+- Quota enforcement before calling Django
+- Audit logging of AI usage

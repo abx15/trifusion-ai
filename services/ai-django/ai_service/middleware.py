@@ -1,4 +1,5 @@
 """Correlation ID and structured logging middleware for TriFusion AI Django Service."""
+
 import json
 import logging
 import time
@@ -60,4 +61,3 @@ class CorrelationIdMiddleware:
         print(json.dumps(log_entry))
 
         return response
-

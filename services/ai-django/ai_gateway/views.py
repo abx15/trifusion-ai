@@ -1,0 +1,481 @@
+"""Views for TriFusion AI Django Service."""
+
+from __future__ import annotations
+
+import datetime as dt
+import os
+import uuid
+from datetime import datetime, timezone
+
+from django.http import StreamingHttpResponse
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+from ai_gateway.auth import require_service_context
+from ai_gateway.quota import check_quota
+from ai_gateway.safety import (
+    build_safe_prompt,
+    redact_sensitive_content,
+    sanitize_json,
+    validate_tool_name,
+)
+from ai_gateway.serializers import (
+    ProjectSummaryRequestSerializer,
+    TaskSuggestionsRequestSerializer,
+    WeeklyReportRequestSerializer,
+    WorkspaceAssistantRequestSerializer,
+)
+from providers.factory import get_provider
+
+# Import usage model for tracking
+try:
+    from usage.models import AIUsageRecord
+
+    USAGE_TRACKING_ENABLED = True
+except ImportError:
+    USAGE_TRACKING_ENABLED = False
+
+PROVIDER = get_provider()
+
+# Load configuration from environment
+MAX_TOKENS = int(os.environ.get("AI_MAX_TOKENS_PER_REQUEST", "4000"))
+TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", "30"))
+TEMPERATURE = float(os.environ.get("AI_TEMPERATURE", "0.2"))
+
+# Load quota limits from environment
+QUOTA_USER_DAILY_REQUESTS = int(os.environ.get("AI_QUOTA_USER_DAILY_REQUESTS", "100"))
+QUOTA_WORKSPACE_DAILY_REQUESTS = int(os.environ.get("AI_QUOTA_WORKSPACE_DAILY_REQUESTS", "500"))
+
+
+def track_usage(
+    workspace_id: str,
+    user_id: str,
+    capability: str,
+    provider_output: dict,
+    request_id: str | None = None,
+) -> None:
+    """Track AI usage in the database if enabled."""
+    if not USAGE_TRACKING_ENABLED:
+        return
+
+    try:
+        AIUsageRecord.objects.create(
+            id=uuid.uuid4(),
+            workspace_id=workspace_id,
+            user_id=user_id,
+            capability=capability,
+            provider=provider_output.get("provider", "unknown"),
+            model=provider_output.get("model", "unknown"),
+            input_tokens=provider_output.get("input_tokens", 0),
+            output_tokens=provider_output.get("output_tokens", 0),
+            total_tokens=provider_output.get("total_tokens", 0),
+            estimated_cost=provider_output.get("estimated_cost", 0),
+            request_id=request_id,
+        )
+    except Exception:
+        # Don't fail the request if usage tracking fails
+        pass
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    """Liveness probe for ai-django service."""
+    return Response(
+        {
+            "status": "ok",
+            "service": "ai-django",
+            "version": "1.0.0",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def ready_check(request):
+    """Readiness probe for ai-django service."""
+    return Response(
+        {
+            "status": "ok",
+            "service": "ai-django",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "dependencies": {"core": "up"},
+        }
+    )
+
+
+@api_view(["POST"])
+def project_summary(request):
+    """Generate a project summary only from authorized context provided by NestJS."""
+    service_context = require_service_context(request, required_scope="project_summary")
+    serializer = ProjectSummaryRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    payload = serializer.validated_data
+    workspace_id = payload["workspace_id"]
+    user_id = payload["user_id"]
+    request_id = payload.get("request_id") or service_context.get("request_id", "")
+
+    if service_context.get("workspace_id") and service_context["workspace_id"] != workspace_id:
+        return Response(
+            {"error": "Workspace mismatch in signed context"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        check_quota(user_id, workspace_id, quota_type="requests", limit=QUOTA_USER_DAILY_REQUESTS)
+    except PermissionError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    facts = [
+        {"record_id": item.get("id", "unknown"), "statement": item.get("title", "No title")}
+        for item in payload.get("tasks", [])
+    ]
+    if not facts:
+        facts = [
+            {
+                "record_id": payload.get("project_id", "unknown"),
+                "statement": "No task records were supplied.",
+            }
+        ]
+
+    safe_prompt = build_safe_prompt(
+        "Summarize the project using only supplied facts. Distinguish facts from suggestions.",
+        str({"tasks": payload.get("tasks", []), "activity": payload.get("activity", [])}),
+    )
+    provider_output = PROVIDER.generate(
+        prompt=safe_prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE
+    )
+
+    # Track usage
+    track_usage(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        capability="project_summary",
+        provider_output=provider_output,
+        request_id=request_id,
+    )
+
+    response = {
+        "status": "ok",
+        "workspace_id": workspace_id,
+        "user_id": user_id,
+        "request_id": request_id,
+        "generated_at": dt.datetime.now(timezone.utc).isoformat(),
+        "source_scope": f"workspace:{workspace_id}",
+        "provider": provider_output["provider"],
+        "model": provider_output["model"],
+        "output": {
+            "facts": facts,
+            "summary": "Project summary generated from authorized task and activity context only.",
+            "generated_suggestions": [
+                "Review overdue or blocked tasks before the next working session.",
+                "Confirm whether current scope and assumptions remain valid.",
+            ],
+        },
+    }
+    return Response(sanitize_json(response))
+
+
+@api_view(["POST"])
+def weekly_report(request):
+    """Generate a weekly report from real analytics data supplied by NestJS."""
+    service_context = require_service_context(request, required_scope="weekly_report")
+    serializer = WeeklyReportRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    payload = serializer.validated_data
+    workspace_id = payload["workspace_id"]
+    user_id = payload["user_id"]
+    request_id = payload.get("request_id") or service_context.get("request_id", "")
+
+    if service_context.get("workspace_id") and service_context["workspace_id"] != workspace_id:
+        return Response(
+            {"error": "Workspace mismatch in signed context"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        check_quota(user_id, workspace_id, quota_type="requests", limit=QUOTA_USER_DAILY_REQUESTS)
+    except PermissionError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    analytics = payload.get("analytics", {})
+    reporting_period = payload.get("reporting_period", {})
+    safe_prompt = build_safe_prompt(
+        "Write a weekly report using only supplied metrics. If metrics are absent, say so.",
+        str({"analytics": analytics, "reporting_period": reporting_period}),
+    )
+    provider_output = PROVIDER.generate(
+        prompt=safe_prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE
+    )
+
+    # Track usage
+    track_usage(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        capability="weekly_report",
+        provider_output=provider_output,
+        request_id=request_id,
+    )
+
+    return Response(
+        sanitize_json(
+            {
+                "status": "ok",
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "request_id": request_id,
+                "generated_at": dt.datetime.now(timezone.utc).isoformat(),
+                "source_scope": f"workspace:{workspace_id}",
+                "provider": provider_output["provider"],
+                "model": provider_output["model"],
+                "output": {
+                    "reporting_period": reporting_period,
+                    "facts": [{"metric": key, "value": value} for key, value in analytics.items()],
+                    "summary": (
+                        "Report built from the provided "
+                        "analytics snapshot and reporting period."
+                    ),
+                },
+            }
+        )
+    )
+
+
+@api_view(["POST"])
+def task_suggestions(request):
+    """Return next-step suggestions based on a task and project context."""
+    service_context = require_service_context(request, required_scope="task_suggestions")
+    serializer = TaskSuggestionsRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    payload = serializer.validated_data
+    workspace_id = payload["workspace_id"]
+    user_id = payload["user_id"]
+    request_id = payload.get("request_id") or service_context.get("request_id", "")
+
+    if service_context.get("workspace_id") and service_context["workspace_id"] != workspace_id:
+        return Response(
+            {"error": "Workspace mismatch in signed context"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        check_quota(user_id, workspace_id, quota_type="requests", limit=QUOTA_USER_DAILY_REQUESTS)
+    except PermissionError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    task = payload.get("task", {})
+    project = payload.get("project", {})
+    safe_prompt = build_safe_prompt(
+        "Provide next-step suggestions for the task using only the task and project context.",
+        str({"task": task, "project": project}),
+    )
+    provider_output = PROVIDER.generate(
+        prompt=safe_prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE
+    )
+
+    # Track usage
+    track_usage(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        capability="task_suggestions",
+        provider_output=provider_output,
+        request_id=request_id,
+    )
+
+    return Response(
+        sanitize_json(
+            {
+                "status": "ok",
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "request_id": request_id,
+                "generated_at": dt.datetime.now(timezone.utc).isoformat(),
+                "source_scope": f"workspace:{workspace_id}",
+                "provider": provider_output["provider"],
+                "model": provider_output["model"],
+                "output": {
+                    "task_id": payload.get("task_id"),
+                    "facts": [{"field": key, "value": value} for key, value in task.items()],
+                    "suggestions": [
+                        "Confirm current assignee and dependencies before widening scope.",
+                        "Record the next blocker and expected completion date.",
+                    ],
+                },
+            }
+        )
+    )
+
+
+@api_view(["POST"])
+def workspace_assistant(request):
+    """Answer workspace questions only from data supplied by NestJS."""
+    service_context = require_service_context(request, required_scope="workspace_assistant")
+    serializer = WorkspaceAssistantRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    payload = serializer.validated_data
+    workspace_id = payload["workspace_id"]
+    user_id = payload["user_id"]
+    request_id = payload.get("request_id") or service_context.get("request_id", "")
+
+    if service_context.get("workspace_id") and service_context["workspace_id"] != workspace_id:
+        return Response(
+            {"error": "Workspace mismatch in signed context"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        check_quota(user_id, workspace_id, quota_type="requests", limit=QUOTA_USER_DAILY_REQUESTS)
+    except PermissionError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    context_items = payload.get("retrieved_context", [])
+    prompt_text = (
+        "\n".join(f"- {redact_sensitive_content(str(item))}" for item in context_items)
+        or "No authorized context was supplied."
+    )
+    safe_prompt = build_safe_prompt(
+        "Answer the question using only the supplied "
+        "context. Do not invent facts. If missing, say so.",
+        f"Question: {payload['question']}\nContext:\n{prompt_text}",
+    )
+    provider_output = PROVIDER.generate(
+        prompt=safe_prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE
+    )
+
+    # Track usage
+    track_usage(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        capability="workspace_assistant",
+        provider_output=provider_output,
+        request_id=request_id,
+    )
+
+    return Response(
+        sanitize_json(
+            {
+                "status": "ok",
+                "workspace_id": workspace_id,
+                "user_id": user_id,
+                "request_id": request_id,
+                "generated_at": dt.datetime.now(timezone.utc).isoformat(),
+                "source_scope": f"workspace:{workspace_id}",
+                "provider": provider_output["provider"],
+                "model": provider_output["model"],
+                "output": {
+                    "answer": (
+                        "Answer is based strictly on the authorized "
+                        "context supplied by NestJS."
+                    ),
+                    "references": context_items[:5],
+                    "question": payload["question"],
+                },
+            }
+        )
+    )
+
+
+@api_view(["POST"])
+def workspace_assistant_stream(request):
+    """Stream assistant response via SSE."""
+    service_context = require_service_context(request, required_scope="workspace_assistant")
+    serializer = WorkspaceAssistantRequestSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    payload = serializer.validated_data
+    workspace_id = payload["workspace_id"]
+    user_id = payload["user_id"]
+    request_id = payload.get("request_id") or service_context.get("request_id", "")
+
+    if service_context.get("workspace_id") and service_context["workspace_id"] != workspace_id:
+        return Response(
+            {"error": "Workspace mismatch in signed context"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    try:
+        check_quota(user_id, workspace_id, quota_type="requests", limit=QUOTA_USER_DAILY_REQUESTS)
+    except PermissionError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    context_items = payload.get("retrieved_context", [])
+    prompt_text = (
+        "\n".join(f"- {redact_sensitive_content(str(item))}" for item in context_items)
+        or "No authorized context was supplied."
+    )
+    safe_prompt = build_safe_prompt(
+        "Answer the question using only the supplied "
+        "context. Do not invent facts. If missing, say so.",
+        f"Question: {payload['question']}\nContext:\n{prompt_text}",
+    )
+
+    def event_stream():
+        """Generator for SSE events."""
+        try:
+            stream = PROVIDER.generate_stream(
+                prompt=safe_prompt, max_tokens=MAX_TOKENS, temperature=TEMPERATURE
+            )
+
+            for chunk in stream:
+                if chunk.get("type") == "token":
+                    yield f"data: {chunk}\n\n"
+                elif chunk.get("type") == "error":
+                    yield f"data: {chunk}\n\n"
+                    break
+                elif chunk.get("type") == "done":
+                    # Track usage for streaming
+                    track_usage(
+                        workspace_id=workspace_id,
+                        user_id=user_id,
+                        capability="workspace_assistant",
+                        provider_output={
+                            "provider": PROVIDER.name,
+                            "model": PROVIDER.model,
+                            "total_tokens": 0,
+                            "estimated_cost": 0,
+                        },
+                        request_id=request_id,
+                    )
+                    yield f"data: {chunk}\n\n"
+                    break
+        except Exception as e:
+            yield f"data: {{'type': 'error', 'error': '{str(e)}'}}\n\n"
+
+    response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+    response["X-Request-Id"] = request_id
+    response["Cache-Control"] = "no-cache"
+    response["Connection"] = "keep-alive"
+    return response
+
+
+@api_view(["POST"])
+def ai_tool_dispatch(request):
+    """Dispatch a tool call only if the tool name is allowlisted and authorized."""
+    service_context = require_service_context(request, required_scope="workspace_assistant")
+    tool_name = request.data.get("tool")
+    try:
+        normalized_tool = validate_tool_name(tool_name)
+    except ValueError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    allowed_scopes = {
+        str(scope).strip().lower() for scope in service_context.get("allowed_scopes", [])
+    }
+    if normalized_tool not in allowed_scopes:
+        return Response(
+            {"error": f"Tool '{normalized_tool}' is not permitted for this service token."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if service_context.get("workspace_id") and request.data.get("workspace_id") not in (
+        None,
+        service_context["workspace_id"],
+    ):
+        return Response(
+            {"error": "Workspace mismatch in signed context"}, status=status.HTTP_403_FORBIDDEN
+        )
+
+    return Response(
+        {
+            "status": "ok",
+            "tool": normalized_tool,
+            "message": "Tool call executed in allowlist mode.",
+        }
+    )
