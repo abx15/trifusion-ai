@@ -146,7 +146,7 @@ export class AnalyticsController {
 @ApiTags('Platform Analytics')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PlatformRolesGuard)
-@Controller({ path: 'platform/analytics', version: '1' })
+@Controller('platform/v1/analytics')
 export class PlatformAnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

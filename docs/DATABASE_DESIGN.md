@@ -172,6 +172,10 @@ The database design provides high-performance relational integrity, strict multi
   - `metadata`: JSONB (Nullable, strictly sanitized/redacted)
   - `ip`: String (Nullable)
   - `userAgent`: String (Nullable)
+  - `chainHash`: String (Nullable, Indexed, for tamper-evidence via hash chaining)
+  - `actorType`: String (Default `USER`, values: USER, PLATFORM_STAFF, SYSTEM)
+  - `grantId`: String (Nullable, Indexed, reference to PrivilegedAccessGrant for break-glass tracking)
+  - `outcome`: String (Default `SUCCESS`, values: SUCCESS, FAILURE)
   - `createdAt`: Timestamp with timezone (default `now()`, Indexed)
 
 ---
@@ -236,3 +240,30 @@ Every mutation writes its ActivityEvent and corresponding domain AuditLog in the
 ### Neon connections and safe testing
 
 Runtime Prisma queries use pooled `DATABASE_URL`; migrations use direct `DIRECT_URL`. Runtime URLs receive bounded defaults of `connection_limit=5`, `pool_timeout=10`, and `connect_timeout=10` when not specified. Integration tests require both `DATABASE_URL_TEST` and `DIRECT_URL_TEST` and do not fall back to runtime URLs. These values must point to a disposable, non-production Neon branch.
+
+---
+
+## 8. Phase 8 Platform Management Schema
+
+Phase 8 adds platform administration, feature flags, entitlements, and privileged access management:
+
+|| Model | Purpose | Key Fields |
+||---|---|---|
+|| `FeatureFlag` | Server-authoritative feature flags with targeting | key, description, type, defaultValue, rules (JSONB), status, chainHash |
+|| `FeatureFlagChange` | History of all flag changes | flagId, actorId, reason, before/after state |
+|| `Plan` | Plan definitions with limits | key, name, limits (JSONB) |
+|| `Entitlement` | Per-workspace plan assignments with overrides | workspaceId, planId, effectiveFrom, effectiveTo, overrides (JSONB) |
+|| `PrivilegedAccessGrant` | Break-glass access grants for support | requesterId, targetWorkspaceId, reason, scope, status, approverId, startsAt, expiresAt, revokedAt |
+
+### Feature Flag Targeting
+Rules support scoped evaluation in order: global → plan → workspace → user. Cache keys are tenant-scoped (`flag:{key}:workspace:{id}:plan:{id}`) to prevent cross-tenant cache poisoning.
+
+### Entitlement Limits
+Plan limits stored as JSONB include: seats, projects, storage (bytes), AI quota (daily requests/tokens), and feature flags. Per-workspace overrides take precedence.
+
+### Break-Glass Grants
+- Status: PENDING, ACTIVE, REVOKED, EXPIRED
+- Low-scope grants (read:aggregate) can be auto-approved by SUPERADMIN/PLATFORM_ADMIN
+- High-scope grants (full) require two-person approval
+- Grants auto-expire at `expiresAt`
+- All access under a grant is audited with `grantId`

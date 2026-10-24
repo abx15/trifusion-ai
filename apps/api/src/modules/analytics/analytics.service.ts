@@ -300,18 +300,83 @@ export class AnalyticsService {
 
   async getPlatformAnalytics(userId: string, requiredRole: PlatformStaffRoleType) {
     await this.policyService.requirePlatformRole(userId, requiredRole);
-    const stats = await this.prisma.workspace.groupBy({
-      by: ['status'],
-      _count: { _all: true },
+
+    const MINIMUM_COHORT_SIZE = 5;
+
+    // Get aggregate workspace counts (no per-workspace details)
+    const [workspaceStats, userStats, projectStats, taskStats] = await Promise.all([
+      this.prisma.workspace.groupBy({
+        by: ['status', 'type'],
+        _count: { _all: true },
+      }),
+      this.prisma.user.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      }),
+      this.prisma.project.groupBy({
+        by: ['status'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+      this.prisma.task.groupBy({
+        by: ['status'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+    ]);
+
+    // Get recent signups (aggregated only, no per-user data)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentSignups = await this.prisma.user.count({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+        status: 'ACTIVE',
+      },
     });
+
+    // Get weekly task creation trend (aggregated only)
+    const weeklyTaskTrend = await this.prisma.$queryRaw<Array<{ week: string; count: bigint }>>`
+      SELECT
+        DATE_TRUNC('week', "createdAt")::date as week,
+        COUNT(*) as count
+      FROM "Task"
+      WHERE "deletedAt" IS NULL
+        AND "createdAt" >= ${thirtyDaysAgo}
+      GROUP BY week
+      ORDER BY week DESC
+      LIMIT 8
+    `;
+
+    // De-identify: Only show counts, no workspace names, user emails, or project details
+    // Enforce minimum cohort size: Only show breakdowns if count >= MINIMUM_COHORT_SIZE
+    const workspaceStatusCounts = workspaceStats
+      .filter((entry) => entry._count._all >= MINIMUM_COHORT_SIZE)
+      .map((entry) => ({ status: entry.status, count: entry._count._all }));
+
+    const workspaceTypeCounts = workspaceStats
+      .filter((entry) => entry._count._all >= MINIMUM_COHORT_SIZE)
+      .map((entry) => ({ type: entry.type, count: entry._count._all }));
 
     return {
       generatedAt: new Date().toISOString(),
       dataFreshness: 'live',
       metricVersion: 'v1',
+      privacyNote: 'All metrics are de-identified aggregates. Minimum cohort size enforced.',
       platformAggregates: {
-        workspaceCount: stats.reduce((sum, entry) => sum + entry._count._all, 0),
-        workspaceStatusCounts: stats.map((entry) => ({ status: entry.status, count: entry._count._all })),
+        totalWorkspaces: workspaceStats.reduce((sum, entry) => sum + entry._count._all, 0),
+        workspaceStatusCounts: workspaceStatusCounts.length > 0 ? workspaceStatusCounts : null,
+        workspaceTypeCounts: workspaceTypeCounts.length > 0 ? workspaceTypeCounts : null,
+        totalUsers: userStats.reduce((sum, entry) => sum + entry._count._all, 0),
+        userStatusCounts: userStats.map((entry) => ({ status: entry.status, count: entry._count._all })),
+        totalProjects: projectStats.reduce((sum, entry) => sum + entry._count._all, 0),
+        projectStatusCounts: projectStats.map((entry) => ({ status: entry.status, count: entry._count._all })),
+        totalTasks: taskStats.reduce((sum, entry) => sum + entry._count._all, 0),
+        taskStatusCounts: taskStats.map((entry) => ({ status: entry.status, count: entry._count._all })),
+        recentSignups,
+        weeklyTaskTrend: weeklyTaskTrend.map((row) => ({
+          week: row.week?.toString(),
+          count: Number(row.count),
+        })),
       },
     };
   }

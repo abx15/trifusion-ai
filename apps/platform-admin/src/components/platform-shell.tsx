@@ -17,11 +17,15 @@ function ShellContents({ children }: { children: React.ReactNode }) {
   if (isLogin) return <>{children}</>;
 
   const links = [
-    { href: '/', label: 'Overview', icon: Shield, allowed: true },
-    { href: '/audit', label: 'Audit logs', icon: Activity, allowed: Boolean(staff) },
-    { href: '/analytics', label: 'Analytics', icon: BarChart3, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN', 'ANALYST'].includes(staff.role)) },
-    { href: '/users', label: 'User status', icon: Users, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) },
-    { href: '/settings', label: 'Platform settings', icon: Settings, allowed: staff?.role === 'SUPERADMIN' },
+    { href: '/', label: 'Dashboard', icon: Shield, allowed: Boolean(staff) },
+    { href: '/health', label: 'Service Health', icon: Activity, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) },
+    { href: '/metrics', label: 'Platform Metrics', icon: BarChart3, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN', 'ANALYST'].includes(staff.role)) },
+    { href: '/audit', label: 'Audit Logs', icon: Activity, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN', 'ANALYST'].includes(staff.role)) },
+    { href: '/grants', label: 'Access Grants', icon: Shield, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) },
+    { href: '/flags', label: 'Feature Flags', icon: Settings, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) },
+    { href: '/staff', label: 'Staff Roles', icon: Users, allowed: staff?.role === 'SUPERADMIN' },
+    { href: '/workspaces', label: 'Workspaces', icon: Users, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) },
+    { href: '/users', label: 'Users', icon: Users, allowed: Boolean(staff && ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) },
   ];
 
   const logout = async () => {

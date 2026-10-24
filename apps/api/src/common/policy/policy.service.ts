@@ -290,4 +290,55 @@ export class PolicyService {
       joinedAt: m.joinedAt,
     }));
   }
+
+  /**
+   * Validate platform staff role change
+   * Prevents self-escalation and last SUPERADMIN removal
+   */
+  async validatePlatformRoleChange(
+    actorId: string,
+    targetUserId: string,
+    newRole: PlatformStaffRoleType,
+    action: 'grant' | 'revoke',
+  ): Promise<void> {
+    // Actor must be SUPERADMIN to modify platform roles
+    const actorStaff = await this.prisma.platformStaffRole.findFirst({
+      where: { userId: actorId, status: 'ACTIVE', role: PlatformStaffRoleType.SUPERADMIN },
+    });
+
+    if (!actorStaff) {
+      throw new ForbiddenException('Only SUPERADMIN can modify platform staff roles');
+    }
+
+    // Prevent self-modification
+    if (actorId === targetUserId) {
+      throw new ForbiddenException('Cannot modify your own platform staff role');
+    }
+
+    // Check if trying to revoke last SUPERADMIN
+    if (action === 'revoke' && newRole === PlatformStaffRoleType.SUPERADMIN) {
+      const superadminCount = await this.prisma.platformStaffRole.count({
+        where: {
+          role: PlatformStaffRoleType.SUPERADMIN,
+          status: 'ACTIVE',
+        },
+      });
+
+      if (superadminCount <= 1) {
+        throw new BadRequestException('Cannot revoke the last remaining SUPERADMIN');
+      }
+    }
+  }
+
+  /**
+   * Get count of active SUPERADMINs
+   */
+  async getSuperadminCount(): Promise<number> {
+    return this.prisma.platformStaffRole.count({
+      where: {
+        role: PlatformStaffRoleType.SUPERADMIN,
+        status: 'ACTIVE',
+      },
+    });
+  }
 }

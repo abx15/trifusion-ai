@@ -20,6 +20,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GraphQLTimeoutInterceptor } from './graphql-timeout.interceptor';
 import { WorkspaceOverview } from './entities/workspace-overview.entity';
 import { WorkspaceOverviewFilterInput } from './dto/workspace-overview-filter.input';
+import { WorkspaceAnalytics } from './entities/workspace-analytics.entity';
 
 interface GraphQLContext {
   req: {
@@ -112,7 +113,7 @@ export class GraphQLResolver {
     return this.projectsService.getWorkspaceOverview(workspaceId, user.id, filters);
   }
 
-  @Query(() => Object)
+  @Query(() => WorkspaceAnalytics)
   async workspaceAnalytics(
     @Context() context: GraphQLContext,
     @Args('workspaceId') workspaceId: string,

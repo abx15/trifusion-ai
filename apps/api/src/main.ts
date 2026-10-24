@@ -10,7 +10,7 @@ async function bootstrap() {
 
   // Global prefix with health/ready excluded from versioning
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health', 'health/', 'ready', 'ready/'],
+    exclude: ['health', 'health/', 'ready', 'ready/', 'platform/(.*)'],
   });
 
   // Global validation pipe with class-validator

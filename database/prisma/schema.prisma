@@ -196,6 +196,8 @@ model User {
 
   notifications Notification[]
 
+  privilegedGrantsRequested PrivilegedAccessGrant[] @relation("GrantRequester")
+
   notificationPreferences NotificationPreference[]
 
   ownedFiles FileAsset[] @relation("FileOwner")
@@ -316,6 +318,8 @@ model Workspace {
   WorkspaceSettings WorkspaceSettings?
   activityEvents    ActivityEvent[]
   notifications     Notification[]
+  entitlements      Entitlement[]
+  privilegedGrants  PrivilegedAccessGrant[] @relation("GrantTargetWorkspace")
   notificationPreferences NotificationPreference[]
   fileAssets        FileAsset[]
   jobRecords        JobRecord[]
@@ -440,6 +444,14 @@ model AuditLog {
 
   userAgent String?
 
+  chainHash String?
+
+  actorType String @default("USER")
+
+  grantId String?
+
+  outcome String @default("SUCCESS")
+
   createdAt DateTime @default(now())
 
   @@index([actorId])
@@ -448,6 +460,8 @@ model AuditLog {
   @@index([workspaceId])
   @@index([createdAt])
   @@index([requestId])
+  @@index([chainHash])
+  @@index([grantId])
 }
 
 enum ClientStatus {
@@ -773,4 +787,74 @@ model JobRecord {
   @@unique([workspaceId, idempotencyKey])
   @@index([workspaceId])
   @@index([status])
+}
+
+
+model FeatureFlag {
+  id String @id @default(uuid())
+  key String @unique
+  description String?
+  type String @default("boolean")
+  defaultValue String?
+  rules Json?
+  status String @default("ACTIVE")
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  changes FeatureFlagChange[]
+}
+
+model FeatureFlagChange {
+  id String @id @default(uuid())
+  flagId String
+  flag FeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+  actorId String?
+  reason String?
+  before Json?
+  after Json?
+  createdAt DateTime @default(now())
+  @@index([flagId])
+}
+
+model Plan {
+  id String @id @default(uuid())
+  key String @unique
+  name String
+  limits Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  entitlements Entitlement[]
+}
+
+model Entitlement {
+  id String @id @default(uuid())
+  workspaceId String
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  planId String
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  effectiveFrom DateTime @default(now())
+  effectiveTo DateTime?
+  overrides Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([workspaceId])
+}
+
+model PrivilegedAccessGrant {
+  id String @id @default(uuid())
+  requesterId String
+  requester User @relation("GrantRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  targetWorkspaceId String
+  targetWorkspace Workspace @relation("GrantTargetWorkspace", fields: [targetWorkspaceId], references: [id], onDelete: Cascade)
+  reason String
+  scope String
+  status String @default("PENDING")
+  approverId String?
+  startsAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([targetWorkspaceId])
+  @@index([requesterId])
 }
