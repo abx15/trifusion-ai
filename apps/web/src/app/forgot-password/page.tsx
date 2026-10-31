@@ -61,7 +61,7 @@ export default function ForgotPasswordPage() {
                 placeholder="name@company.com"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 disabled={isSubmitting || !!message}
               />
             </div>

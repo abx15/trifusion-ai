@@ -78,7 +78,7 @@ export class AiService {
    */
   private async callDjango<T>(
     endpoint: string,
-    payload: any,
+    payload: Record<string, unknown>,
     serviceContext: {
       workspace_id: string;
       user_id: string;
@@ -133,8 +133,8 @@ export class AiService {
     user_id: string;
     role: string;
     project_id: string;
-    tasks: any[];
-    activity: any[];
+    tasks: Array<{ id: string; title: string; status: string; priority: string }>;
+    activity: Array<{ id: string; action: string; timestamp: string }>;
     request_id?: string;
   }) {
     return this.callDjango('/v1/ai/project-summary', data, {
@@ -153,8 +153,8 @@ export class AiService {
     workspace_id: string;
     user_id: string;
     role: string;
-    analytics: any;
-    reporting_period: any;
+    analytics: Record<string, unknown>;
+    reporting_period: { start: string; end: string };
     request_id?: string;
   }) {
     return this.callDjango('/v1/ai/weekly-report', data, {
@@ -174,8 +174,8 @@ export class AiService {
     user_id: string;
     role: string;
     task_id: string;
-    task: any;
-    project: any;
+    task: { id: string; title: string; status: string; priority: string };
+    project: { id: string; name: string; status: string };
     request_id?: string;
   }) {
     return this.callDjango('/v1/ai/task-suggestions', data, {
@@ -195,7 +195,7 @@ export class AiService {
     user_id: string;
     role: string;
     question: string;
-    retrieved_context: any[];
+    retrieved_context: Array<{ id: string; type: string; title: string }>;
     request_id?: string;
   }) {
     return this.callDjango('/v1/ai/assistant', data, {
@@ -208,30 +208,22 @@ export class AiService {
   }
 
   /**
-   * Stream assistant response (returns URL for SSE)
+   * Stream assistant response via NestJS proxy (never exposes Django internals to browser)
    */
   async streamAssistant(data: {
     workspace_id: string;
     user_id: string;
     role: string;
     question: string;
-    retrieved_context: any[];
+    retrieved_context: Array<{ id: string; type: string; title: string }>;
     request_id?: string;
   }) {
-    // For streaming, we return the signed token and let the frontend connect directly to NestJS
-    // NestJS will then proxy the stream from Django
-    const token = this.createServiceToken({
-      workspace_id: data.workspace_id,
-      user_id: data.user_id,
-      role: data.role,
-      allowed_scopes: ['workspace_assistant'],
-      request_id: data.request_id,
-    });
+    // NestJS proxies the SSE stream from Django. Never return Django URL or service token to browser.
+    const requestId = data.request_id || this.generateNonce();
 
     return {
-      stream_url: `${this.djangoUrl}/v1/ai/assistant/stream`,
-      token,
-      request_id: data.request_id || this.generateNonce(),
+      stream_url: `/api/v1/workspaces/${data.workspace_id}/ai/assistant/stream`,
+      request_id: requestId,
     };
   }
 }

@@ -78,10 +78,10 @@ def test_tool_allowlist_rejects_unsupported_tool():
 def test_quota_is_enforced_for_workspace_user_pair():
     quota_store = {}
     for _ in range(120):
-        check_quota(quota_store, "user-1", "workspace-1", limit=120)
+        check_quota("user-1", "workspace-1", limit=120, store=quota_store)
 
     with pytest.raises(PermissionError, match="Quota exceeded"):
-        check_quota(quota_store, "user-1", "workspace-1", limit=120)
+        check_quota("user-1", "workspace-1", limit=120, store=quota_store)
 
 
 def test_prompt_redaction_and_safety_hardening():

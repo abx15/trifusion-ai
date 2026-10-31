@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-type RouteContext = { params: { path: string[] } };
+type RouteContext = { params: Promise<{ path: string[] }> };
 
-const ACCESS_COOKIE = 'trifusion_access';
-const REFRESH_COOKIE = 'trifusion_refresh';
+const ACCESS_COOKIE = 'accessToken';
+const REFRESH_COOKIE = 'refreshToken';
 
 function setSessionCookies(response: NextResponse, accessToken: string, refreshToken?: string) {
   const secure = process.env.NODE_ENV === 'production';
@@ -124,7 +124,7 @@ async function refreshAccessToken(request: NextRequest): Promise<{
 }
 
 async function handle(request: NextRequest, { params }: RouteContext) {
-  const path = params.path ?? [];
+  const path = (await params).path ?? [];
   const pathText = path.join('/');
   if (
     !['GET', 'HEAD'].includes(request.method) &&

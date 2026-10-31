@@ -1,5 +1,18 @@
 import { IsUUID, IsArray, IsOptional, IsString } from 'class-validator';
 
+export interface TaskInput {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+}
+
+export interface ActivityInput {
+  id: string;
+  action: string;
+  timestamp: string;
+}
+
 export class ProjectSummaryDto {
   @IsUUID()
   workspace_id!: string;
@@ -15,11 +28,11 @@ export class ProjectSummaryDto {
 
   @IsArray()
   @IsOptional()
-  tasks?: any[];
+  tasks?: TaskInput[];
 
   @IsArray()
   @IsOptional()
-  activity?: any[];
+  activity?: ActivityInput[];
 
   @IsString()
   @IsOptional()

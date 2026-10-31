@@ -116,7 +116,7 @@ export function ResourceList({ resource }: { resource: ResourceKind }) {
               <Input
                 className="pl-9"
                 value={search}
-                onChange={(event) => setFilter(setSearch, event.target.value)}
+                onChange={(event: React.ChangeEvent<HTMLInputElement>) => setFilter(setSearch, event.target.value)}
                 placeholder={`Search ${resource}`}
               />
             </label>

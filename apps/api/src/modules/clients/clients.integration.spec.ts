@@ -127,6 +127,12 @@ describe('Phase 3 Integration - Clients CRUD', () => {
       .send({ name: 'Client B' })
       .expect(201);
 
+    await request(app.getHttpServer())
+      .post(`/api/v1/workspaces/${workspaceId}/clients`)
+      .set('Authorization', `Bearer ${memberToken}`)
+      .send({ name: 'Client C' })
+      .expect(201);
+
     const res = await request(app.getHttpServer())
       .get(`/api/v1/workspaces/${workspaceId}/clients?limit=2`)
       .set('Authorization', `Bearer ${memberToken}`)
@@ -248,6 +254,7 @@ describe('Phase 3 Integration - Clients CRUD', () => {
     expect(restoreRes.body.status).toBe('ACTIVE');
     expect(restoreRes.body.deletedAt).toBeNull();
 
+    await prisma.client.deleteMany({ where: { workspaceId, createdBy: adminUser.id } });
     await prisma.user.delete({ where: { id: adminUser.id } });
     await prisma.workspaceMember.deleteMany({ where: { userId: adminUser.id } });
   });
@@ -276,9 +283,19 @@ describe('Phase 3 Integration - Clients CRUD', () => {
 });
 
 async function getAuthToken(app: INestApplication, email: string, password: string): Promise<string> {
-  const loginRes = await request(app.getHttpServer())
-    .post('/api/v1/auth/login')
-    .send({ email, password })
-    .expect(200);
-  return loginRes.body.tokens.accessToken;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const loginRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password });
+      if (loginRes.status === 200) {
+        return loginRes.body.tokens.accessToken;
+      }
+    } catch {
+      // retry on transient failure
+    }
+    // Wait before retry (rate limit cooldown)
+    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+  }
+  throw new Error(`Failed to get auth token after 5 attempts`);
 }

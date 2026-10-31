@@ -89,7 +89,7 @@ export class FeatureFlagService {
   private evaluateRules(
     rules: Prisma.JsonObject | null,
     context: FlagEvaluationContext,
-    flag: any,
+    flag: { key: string; defaultValue: string | null; type: string },
   ): FlagEvaluationResult {
     if (!rules) {
       return {

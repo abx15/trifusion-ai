@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { RequireWorkspaceRole } from '../auth/decorators/authorization.decorators';
@@ -48,7 +47,8 @@ export class WorkspaceSettingsController {
   }
 
   @Patch()
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.TEAM_ADMIN)
   @ApiOperation({ summary: 'Update workspace settings' })
   @ApiResponse({

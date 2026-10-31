@@ -26,6 +26,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { FilesModule } from './modules/files/files.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { JobsModule } from './modules/jobs/jobs.module';
+import { AiModule } from './modules/ai/ai.module';
 import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
 
 @Module({
@@ -59,6 +60,7 @@ import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard
     FilesModule,
     RealtimeModule,
     JobsModule,
+    AiModule,
     GraphQLModule,
   ],
   controllers: [],

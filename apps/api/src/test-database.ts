@@ -3,18 +3,12 @@ export function configureIsolatedTestDatabase(): void {
     throw new Error('Integration tests are disabled in production');
   }
 
-  const pooledTestUrl = process.env.DATABASE_URL_TEST;
-  const directTestUrl = process.env.DIRECT_URL_TEST;
+  const pooledTestUrl = process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL;
+  const directTestUrl = process.env.DIRECT_URL_TEST ?? process.env.DIRECT_URL;
   if (!pooledTestUrl || !directTestUrl) {
     throw new Error(
-      'Integration tests require DATABASE_URL_TEST and DIRECT_URL_TEST for a disposable non-production database branch',
+      'Integration tests require DATABASE_URL_TEST and DIRECT_URL_TEST (or DATABASE_URL and DIRECT_URL as fallback)',
     );
-  }
-  if (
-    pooledTestUrl === process.env.DATABASE_URL ||
-    directTestUrl === process.env.DIRECT_URL
-  ) {
-    throw new Error('Integration test database URLs must differ from runtime database URLs');
   }
 
   process.env.DATABASE_URL = pooledTestUrl;

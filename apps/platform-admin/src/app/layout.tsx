@@ -1,13 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
+import { TrifusionProvider } from '@trifusion/ui';
 import { PlatformShell } from '../components/platform-shell';
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'TriFusion AI - Admin Panel',
-  description: 'TriFusion AI Platform Administration',
+  title: 'TriFusion AI - Platform Admin',
+  description: 'TriFusion AI Platform Administration and Operations',
 };
 
 export default function RootLayout({
@@ -17,7 +15,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}><PlatformShell>{children}</PlatformShell></body>
+      <body className="font-sans antialiased bg-background text-foreground">
+        <TrifusionProvider>
+          <PlatformShell>{children}</PlatformShell>
+        </TrifusionProvider>
+      </body>
     </html>
   );
 }

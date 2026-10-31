@@ -14,7 +14,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { Request } from 'express';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { RequireWorkspaceRole } from '../auth/decorators/authorization.decorators';
@@ -43,7 +42,8 @@ export class ClientsController {
   }
 
   @Post()
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.MEMBER)
   @ApiOperation({ summary: 'Create a client' })
   @ApiResponse({ status: 201, description: 'Client created', type: Client })
@@ -82,7 +82,8 @@ export class ClientsController {
   }
 
   @Patch(':clientId')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.MEMBER)
   @ApiOperation({ summary: 'Update a client' })
   @ApiParam({ name: 'clientId', description: 'Client UUID' })
@@ -100,7 +101,8 @@ export class ClientsController {
 
   @Delete(':clientId/archive')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.TEAM_ADMIN)
   @ApiOperation({ summary: 'Soft-delete (archive) a client' })
   @ApiParam({ name: 'clientId', description: 'Client UUID' })
@@ -116,7 +118,8 @@ export class ClientsController {
   }
 
   @Patch(':clientId/restore')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.TEAM_ADMIN)
   @ApiOperation({ summary: 'Restore an archived client' })
   @ApiParam({ name: 'clientId', description: 'Client UUID' })

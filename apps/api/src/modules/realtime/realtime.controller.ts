@@ -7,7 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard)
 export class RealtimeController {
   @Get('stream')
-  stream(@CurrentUser() user: any, @Query('workspaceId') workspaceId: string, @Res() res: Response) {
+  stream(@CurrentUser() user: { id: string }, @Query('workspaceId') workspaceId: string, @Res() res: Response) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

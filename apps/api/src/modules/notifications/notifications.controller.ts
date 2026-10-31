@@ -10,22 +10,22 @@ export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 
   @Get()
-  list(@CurrentUser() user: any, @Query() dto: ListNotificationsDto) {
+  list(@CurrentUser() user: { id: string }, @Query() dto: ListNotificationsDto) {
     return this.service.list(user.id, dto.cursor, dto.workspaceId);
   }
 
   @Get('unread-count')
-  unread(@CurrentUser() user: any, @Query('workspaceId') workspaceId?: string) {
+  unread(@CurrentUser() user: { id: string }, @Query('workspaceId') workspaceId?: string) {
     return this.service.unreadCount(user.id, workspaceId);
   }
 
   @Patch(':id/read')
-  markRead(@CurrentUser() user: any, @Param('id') id: string) {
+  markRead(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.service.markRead(user.id, id);
   }
 
   @Patch('read-all')
-  markAll(@CurrentUser() user: any, @Query('workspaceId') workspaceId?: string) {
+  markAll(@CurrentUser() user: { id: string }, @Query('workspaceId') workspaceId?: string) {
     return this.service.markAllRead(user.id, workspaceId);
   }
 }

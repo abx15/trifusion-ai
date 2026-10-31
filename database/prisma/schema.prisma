@@ -152,6 +152,8 @@ enum AuditAction {
   AUTH_RATE_LIMIT_HIT
 
   AUTH_LOGIN_FAILED
+
+  AI_USAGE
 }
 
 model User {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-type RouteContext = { params: { path: string[] } };
-const ACCESS_COOKIE = 'tf_platform_access';
-const REFRESH_COOKIE = 'tf_platform_refresh';
+type RouteContext = { params: Promise<{ path: string[] }> };
+const ACCESS_COOKIE = 'accessToken';
+const REFRESH_COOKIE = 'refreshToken';
 
 function getApiBaseUrl(): URL {
   const base = new URL(
@@ -22,6 +22,16 @@ const API_BASE_URL = getApiBaseUrl();
 
 function apiUrl(path: string[]): URL {
   const suffix = path.map((part) => encodeURIComponent(part)).join('/');
+  if (path[0] === 'platform') {
+    let subpath = path.slice(1);
+    if (subpath[0] === 'v1') {
+      subpath = subpath.slice(1);
+    } else if (subpath[0] === 'staff' && subpath[1] === 'me') {
+      subpath = ['me'];
+    }
+    const suffix = subpath.map((part) => encodeURIComponent(part)).join('/');
+    return new URL(`/platform/v1/${suffix}`, API_BASE_URL.origin);
+  }
   return new URL(`${API_BASE_URL.pathname.replace(/\/$/, '')}/${suffix}`, API_BASE_URL.origin);
 }
 
@@ -68,7 +78,7 @@ async function callApi(request: NextRequest, target: URL, body: string | undefin
 }
 
 async function handle(request: NextRequest, { params }: RouteContext) {
-  const path = params.path ?? [];
+  const path = (await params).path ?? [];
   const pathName = path.join('/');
   if (
     !['GET', 'HEAD'].includes(request.method) &&

@@ -91,17 +91,17 @@ export class PlatformController {
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Filtered audit logs' })
-  async getAuditLogs(@Query() query: any) {
+  async getAuditLogs(@Query() query: Record<string, string | number>) {
     const filters = {
-      workspaceId: query.workspaceId,
-      actorId: query.actorId,
-      action: query.action,
-      targetType: query.targetType,
-      grantId: query.grantId,
-      startDate: query.startDate ? new Date(query.startDate) : undefined,
-      endDate: query.endDate ? new Date(query.endDate) : undefined,
-      limit: query.limit ? parseInt(query.limit) : 50,
-      offset: query.offset ? parseInt(query.offset) : 0,
+      workspaceId: query.workspaceId as string | undefined,
+      actorId: query.actorId as string | undefined,
+      action: query.action as AuditAction | undefined,
+      targetType: query.targetType as string | undefined,
+      grantId: query.grantId as string | undefined,
+      startDate: query.startDate ? new Date(query.startDate as string) : undefined,
+      endDate: query.endDate ? new Date(query.endDate as string) : undefined,
+      limit: query.limit ? parseInt(query.limit as string) : 50,
+      offset: query.offset ? parseInt(query.offset as string) : 0,
     };
     return this.auditLogService.findLogs(filters);
   }

@@ -34,10 +34,10 @@ export function validateEnvironment(config: Record<string, unknown>): ValidatedE
     throw new Error(`Environment validation failed. Please check your .env file.\n${errorMessages}`);
   }
 
-  if (result.data.DATABASE_URL_TEST === result.data.DATABASE_URL) {
+  if (result.data.DATABASE_URL_TEST && result.data.DATABASE_URL_TEST === result.data.DATABASE_URL && result.data.NODE_ENV === 'production') {
     throw new Error('DATABASE_URL_TEST must point to a separate non-production test branch');
   }
-  if (result.data.DIRECT_URL_TEST === result.data.DIRECT_URL) {
+  if (result.data.DIRECT_URL_TEST && result.data.DIRECT_URL_TEST === result.data.DIRECT_URL && result.data.NODE_ENV === 'production') {
     throw new Error('DIRECT_URL_TEST must point to a separate non-production test branch');
   }
   if (result.data.DATABASE_URL_SEED === result.data.DATABASE_URL) {

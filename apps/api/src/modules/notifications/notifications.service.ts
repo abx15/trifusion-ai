@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Injectable()
@@ -34,7 +35,16 @@ export class NotificationsService {
     });
   }
 
-  async create(data: { recipientId: string; workspaceId?: string; type: string; payload: any; dedupeKey?: string }) {
-    return this.prisma.notification.create({ data });
+  async create(data: { recipientId: string; workspaceId?: string; type: string; payload: Record<string, unknown>; dedupeKey?: string }) {
+    return this.prisma.notification.create({
+      data: {
+        recipientId: data.recipientId,
+        workspaceId: data.workspaceId,
+        type: data.type,
+        payload: data.payload as Prisma.InputJsonValue,
+        dedupeKey: data.dedupeKey,
+      },
+    });
   }
 }
+

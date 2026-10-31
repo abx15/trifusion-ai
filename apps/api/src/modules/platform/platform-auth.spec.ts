@@ -179,21 +179,21 @@ describe('Platform Authorization Matrix Tests', () => {
 
   describe('GET /platform/v1/me - Staff context inspection', () => {
     it('should allow SUPERADMIN', async () => {
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get('/platform/v1/me')
         .set('Authorization', `Bearer ${superadminToken}`)
         .expect(200);
     });
 
     it('should allow PLATFORM_ADMIN', async () => {
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get('/platform/v1/me')
         .set('Authorization', `Bearer ${platformAdminToken}`)
         .expect(200);
     });
 
     it('should allow ANALYST', async () => {
-      const response = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get('/platform/v1/me')
         .set('Authorization', `Bearer ${analystToken}`)
         .expect(200);

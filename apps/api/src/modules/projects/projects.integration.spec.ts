@@ -103,6 +103,9 @@ describe('Phase 3 Integration - Projects and Tasks', () => {
       .send({ name: 'Project Client' })
       .expect(201);
 
+    // Small delay for Neon replication lag
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const res = await request(app.getHttpServer())
       .post(`/api/v1/workspaces/${workspaceId}/projects`)
       .set('Authorization', `Bearer ${memberToken}`)
@@ -294,9 +297,18 @@ describe('Phase 3 Integration - Projects and Tasks', () => {
 });
 
 async function getAuthToken(app: INestApplication, email: string, password: string): Promise<string> {
-  const loginRes = await request(app.getHttpServer())
-    .post('/api/v1/auth/login')
-    .send({ email, password })
-    .expect(200);
-  return loginRes.body.tokens.accessToken;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const loginRes = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ email, password });
+      if (loginRes.status === 200) {
+        return loginRes.body.tokens.accessToken;
+      }
+    } catch {
+      // retry on transient failure
+    }
+    await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+  }
+  throw new Error(`Failed to get auth token after 5 attempts`);
 }

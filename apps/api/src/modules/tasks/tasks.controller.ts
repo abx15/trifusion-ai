@@ -14,7 +14,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { Request } from 'express';
-import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { RequireWorkspaceRole } from '../auth/decorators/authorization.decorators';
@@ -44,7 +43,8 @@ export class TasksController {
   }
 
   @Post()
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.MEMBER)
   @ApiOperation({ summary: 'Create a task' })
   @ApiResponse({ status: 201, description: 'Task created', type: Task })
@@ -83,7 +83,8 @@ export class TasksController {
   }
 
   @Patch(':taskId')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.MEMBER)
   @ApiOperation({ summary: 'Update a task' })
   @ApiParam({ name: 'taskId', description: 'Task UUID' })
@@ -100,7 +101,8 @@ export class TasksController {
   }
 
   @Patch(':taskId/status')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.MEMBER)
   @ApiOperation({ summary: 'Update task status' })
   @ApiParam({ name: 'taskId', description: 'Task UUID' })
@@ -119,7 +121,8 @@ export class TasksController {
 
   @Delete(':taskId/archive')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.TEAM_ADMIN)
   @ApiOperation({ summary: 'Soft-delete (archive) a task' })
   @ApiParam({ name: 'taskId', description: 'Task UUID' })
@@ -135,7 +138,8 @@ export class TasksController {
   }
 
   @Patch(':taskId/restore')
-  @Throttle({ default: { limit: 30, ttl: 60000 } })
+
+
   @RequireWorkspaceRole(WorkspaceRole.TEAM_ADMIN)
   @ApiOperation({ summary: 'Restore an archived task' })
   @ApiParam({ name: 'taskId', description: 'Task UUID' })

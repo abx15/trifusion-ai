@@ -33,7 +33,8 @@ import { CookieParserMiddleware } from './common/middleware/cookie-parser.middle
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 120,
+        limit: process.env.NODE_ENV === 'test' ? 10000 : 120,
+        ignoreUserAgents: [],
       },
     ]),
     PrismaModule,

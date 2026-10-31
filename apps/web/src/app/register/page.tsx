@@ -82,7 +82,7 @@ export default function RegisterPage() {
                   placeholder="John"
                   required
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFirstName(e.target.value)}
                   disabled={isSubmitting}
                 />
               </div>
@@ -93,7 +93,7 @@ export default function RegisterPage() {
                   placeholder="Doe"
                   required
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLastName(e.target.value)}
                   disabled={isSubmitting}
                 />
               </div>
@@ -107,7 +107,7 @@ export default function RegisterPage() {
                 placeholder="name@company.com"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 autoComplete="email"
                 disabled={isSubmitting}
               />
@@ -121,7 +121,7 @@ export default function RegisterPage() {
                 placeholder="Min. 8 characters"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                 autoComplete="new-password"
                 disabled={isSubmitting}
               />

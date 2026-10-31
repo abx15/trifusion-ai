@@ -183,8 +183,8 @@ export class EntitlementService {
       projects: (limits.projects as number) || DEFAULT_FREE_PLAN.projects,
       storage: (limits.storage as number) || DEFAULT_FREE_PLAN.storage,
       aiQuota: {
-        dailyRequests: (limits.aiQuota as any)?.dailyRequests || DEFAULT_FREE_PLAN.aiQuota.dailyRequests,
-        dailyTokens: (limits.aiQuota as any)?.dailyTokens || DEFAULT_FREE_PLAN.aiQuota.dailyTokens,
+        dailyRequests: ((limits.aiQuota as Record<string, unknown>)?.dailyRequests as number) || DEFAULT_FREE_PLAN.aiQuota.dailyRequests,
+        dailyTokens: ((limits.aiQuota as Record<string, unknown>)?.dailyTokens as number) || DEFAULT_FREE_PLAN.aiQuota.dailyTokens,
       },
       features: (limits.features as Record<string, boolean>) || DEFAULT_FREE_PLAN.features,
     };
@@ -202,7 +202,7 @@ export class EntitlementService {
     if (overrides.aiQuota) {
       merged.aiQuota = {
         ...merged.aiQuota,
-        ...(overrides.aiQuota as any),
+        ...(overrides.aiQuota as Record<string, unknown>),
       };
     }
     if (overrides.features) {

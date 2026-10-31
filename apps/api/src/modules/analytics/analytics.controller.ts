@@ -6,7 +6,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { PlatformStaffRoleType, WorkspaceRole } from '@prisma/client';
+import { PlatformStaffRoleType, ProjectStatus, TaskStatus, WorkspaceRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
 import { WorkspaceGuard } from '../auth/guards/workspace.guard';
@@ -36,9 +36,9 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getWorkspaceOverview(workspaceId, actorId, {
       projectId,
-      projectStatus: projectStatus as any,
+      projectStatus: projectStatus as ProjectStatus,
       assigneeId,
-      taskStatus: taskStatus as any,
+      taskStatus: taskStatus as TaskStatus,
       startDate,
       endDate,
     });
@@ -59,9 +59,9 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getTaskAnalytics(workspaceId, actorId, {
       projectId,
-      projectStatus: projectStatus as any,
+      projectStatus: projectStatus as ProjectStatus,
       assigneeId,
-      taskStatus: taskStatus as any,
+      taskStatus: taskStatus as TaskStatus,
       startDate,
       endDate,
     });
@@ -80,7 +80,7 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getProjectAnalytics(workspaceId, actorId, {
       projectId,
-      projectStatus: projectStatus as any,
+      projectStatus: projectStatus as ProjectStatus,
       startDate,
       endDate,
     });
@@ -101,7 +101,7 @@ export class AnalyticsController {
     return this.analyticsService.getTeamWorkload(workspaceId, actorId, {
       projectId,
       assigneeId,
-      taskStatus: taskStatus as any,
+      taskStatus: taskStatus as TaskStatus,
       startDate,
       endDate,
     });
@@ -134,9 +134,9 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getTrendMetrics(workspaceId, actorId, {
       projectId,
-      projectStatus: projectStatus as any,
+      projectStatus: projectStatus as ProjectStatus,
       assigneeId,
-      taskStatus: taskStatus as any,
+      taskStatus: taskStatus as TaskStatus,
       startDate,
       endDate,
     });

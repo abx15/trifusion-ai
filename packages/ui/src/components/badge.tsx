@@ -1,32 +1,35 @@
+'use client';
+
 import * as React from 'react';
-import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils';
+import { Badge as MuiBadge } from '@mui/material';
 
-const badgeVariants = cva(
-  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-  {
-    variants: {
-      variant: {
-        default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/80',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive: 'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
-        outline: 'text-foreground',
-        success: 'border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-    },
-  },
-);
-
-export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+export interface BadgeProps {
+  variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
+  size?: 'small' | 'medium' | 'large';
+  children?: React.ReactNode;
+  className?: string;
 }
 
-export { Badge, badgeVariants };
+const VARIANT_STYLES: Record<string, React.CSSProperties> = {
+  default: { color: '#FFFFFF', backgroundColor: '#64748B' },
+  primary: { color: '#FFFFFF', backgroundColor: '#003F5C' },
+  secondary: { color: '#FFFFFF', backgroundColor: '#58508D' },
+  success: { color: '#FFFFFF', backgroundColor: '#10B981' },
+  warning: { color: '#000000', backgroundColor: '#FFA600' },
+  error: { color: '#FFFFFF', backgroundColor: '#FF6361' },
+  info: { color: '#FFFFFF', backgroundColor: '#8A508F' },
+};
 
+export function Badge({ variant = 'default', size = 'medium', children, className, ...rest }: BadgeProps) {
+  const style = VARIANT_STYLES[variant];
+  const sizeStyles: Record<string, React.CSSProperties> = {
+    small: { fontSize: '0.7rem', padding: '2px 6px' },
+    medium: { fontSize: '0.75rem', padding: '4px 8px' },
+    large: { fontSize: '0.875rem', padding: '6px 10px' },
+  };
+
+  return (
+    <MuiBadge badgeContent={children} color="primary" sx={{ ...style, ...sizeStyles[size] }} {...rest} className={className} />
+  );
+}
+Badge.displayName = 'Badge';

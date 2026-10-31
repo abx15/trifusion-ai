@@ -1,0 +1,135 @@
+# TriFusion AI — Local Development Docker Compose
+# Requires: Docker, Docker Compose
+# Usage: docker-compose up
+
+version: "3.8"
+
+services:
+  # PostgreSQL (Neon-compatible for local development)
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: trifusion
+      POSTGRES_PASSWORD: trifusion_dev_password_change_in_production
+      POSTGRES_DB: trifusion_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trifusion -d trifusion_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # NestJS API
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://trifusion:trifusion_dev_password_change_in_production@postgres:5432/trifusion_dev?schema=public
+      DIRECT_URL: postgresql://trifusion:trifusion_dev_password_change_in_production@postgres:5432/trifusion_dev?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: dev-secret-key-change-in-production-use-openssl-rand-base64-32
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3002
+      AI_SERVICE_URL: http://django:8000
+      AI_SERVICE_SHARED_SECRET: dev-secret-change-in-production
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+  # Django AI Service (Internal)
+  django:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/django/Dockerfile
+    environment:
+      NODE_ENV: development
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: dev-django-secret-change-in-production
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,django
+      AI_SERVICE_SHARED_SECRET: dev-secret-change-in-production
+      AI_SERVICE_ISSUER: trifusion-ai
+      AI_SERVICE_AUDIENCE: ai-django
+      DJANGO_DATABASE_URL: postgresql://trifusion:trifusion_dev_password_change_in_production@postgres:5432/trifusion_django
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Next.js Web App
+  web:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/web/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # Next.js Platform Admin
+  admin:
+    build:
+      context: ..
+      dockerfile: infrastructure/docker/admin/Dockerfile
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: development
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+    ports:
+      - "3002:3002"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:

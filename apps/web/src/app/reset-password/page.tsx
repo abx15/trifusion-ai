@@ -88,7 +88,7 @@ function ResetPasswordForm() {
                 placeholder="Paste your reset token"
                 required
                 value={token}
-                onChange={(e) => setToken(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setToken(e.target.value)}
                 disabled={isSubmitting || !!success}
               />
             </div>
@@ -102,7 +102,7 @@ function ResetPasswordForm() {
               placeholder="Min. 8 characters"
               required
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
               disabled={isSubmitting || !!success}
             />
           </div>

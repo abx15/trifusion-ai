@@ -1,5 +1,6 @@
 import { ResourceForm } from '../../../../components/dashboard/resource-form';
 
-export default function ClientDetailPage({ params }: { params: { id: string } }) {
-  return <ResourceForm resource="clients" recordId={params.id} />;
+export default async function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ResourceForm resource="clients" recordId={id} />;
 }

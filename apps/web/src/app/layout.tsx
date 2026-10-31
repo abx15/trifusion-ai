@@ -1,10 +1,7 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '../components/providers';
 import { SiteChrome } from '../components/layout/site-chrome';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'TriFusion AI — Business Workspace',
@@ -19,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} min-h-full flex flex-col bg-background text-foreground antialiased`}>
+      <body className="min-h-full flex flex-col bg-background text-foreground antialiased font-sans">
         <Providers>
           <SiteChrome>{children}</SiteChrome>
         </Providers>
