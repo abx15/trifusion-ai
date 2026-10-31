@@ -1,73 +1,185 @@
 # TriFusion AI
 
-TriFusion AI is a multi-tenant business workspace for freelancers, agencies, and service teams. The product brings client, project, and task workflows together with workspace membership, role-based access control, audit history, and dashboard views.
+**AI-Powered Business Workspace for freelancers, digital agencies, and IT service companies.**
 
-> **Development status:** Phases 0-2 are marked complete. Phase 3 (core domain APIs) and Phase 4 (frontend dashboards) are **partial**. Authenticated database-backed acceptance checks are pending an isolated, non-production test database. See [the development roadmap](docs/DEVELOPMENT_ROADMAP.md) for verified milestones and open work.
+TriFusion AI brings clients, projects, tasks, team collaboration, role-based access control, audit history, and AI assistance into one secure, multi-tenant workspace platform. Built as a monorepo with Next.js 16, NestJS 10, Prisma, and PostgreSQL.
 
-## What is in the repository
+[![GitHub stars](https://img.shields.io/github/stars/abx15/trifusion-ai?style=social)](https://github.com/abx15/trifusion-ai)
+[![GitHub forks](https://img.shields.io/github/forks/abx15/trifusion-ai?style=social)](https://github.com/abx15/trifusion-ai)
+[![License: UNLICENSED](https://img.shields.io/badge/license-UNLICENSED-blue.svg)](LICENSE)
+[![Node.js >=18](https://img.shields.io/badge/node-%3E=18-brightgreen.svg)](https://nodejs.org/)
+[![pnpm >=8](https://img.shields.io/badge/pnpm-%3E=8-blue.svg)](https://pnpm.io/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 
-- **Customer web app** - Next.js workspace dashboard for clients, projects, tasks, activity, and workspace settings.
-- **NestJS API** - REST endpoints, Swagger/OpenAPI, GraphQL dashboard queries, authentication, workspace authorization, and domain services.
-- **Platform admin app** - separate staff sign-in and role-gated audit/user-status screens. Analytics and global settings are explicitly unavailable until the API supports them.
-- **Prisma database** - PostgreSQL schema, migrations, and guarded development seeds.
-- **Shared packages** - UI components, API contracts, utilities, and shared configuration.
-- **AI Django service** - a separate service scaffold; it is not required to run the core dashboard.
+---
 
-REST and GraphQL are served by the NestJS API and use the same domain services and authorization policies. The browser apps use same-origin server-side proxies with app-specific HttpOnly cookies; access and refresh tokens are not stored in browser `localStorage`.
+## What Is TriFusion AI?
 
-## Technology
+TriFusion AI is an **AI-powered business workspace** that unifies client management, project tracking, task workflows, team collaboration, and AI assistance into a single permission-controlled platform. Each customer gets an isolated workspace with granular role-based access control (RBAC), while platform staff operate in a strictly separated administrative layer.
 
-- TypeScript, pnpm workspaces, and Turborepo
-- Next.js 14, React, Tailwind CSS, TanStack Query, and Recharts
-- NestJS, REST/Swagger, GraphQL/Apollo, and Prisma
-- PostgreSQL, including Neon-compatible pooled runtime and direct migration connections
-- Python/Django for the separate AI service
+### Core Capabilities
 
-## Repository layout
+| Capability | Description |
+|------------|-------------|
+| **Multi-tenant Workspaces** | Personal and company workspaces with strict tenant isolation — customers never see each other's data |
+| **Role-Based Access Control** | 8 roles across 2 disjoint layers: 4 workspace roles + 4 platform staff roles |
+| **Clients, Projects, Tasks** | Full CRUD with soft-archive/restore, status transitions, assignees, due dates |
+| **Activity Feed** | Cursor-paginated audit trail of all workspace changes |
+| **Real-time Dashboards** | Role-specific layouts (Bento, Grid, Kanban, List) with live data from the API |
+| **AI Assistant** | Project summaries, weekly reports, task suggestions, and bounded Q&A via a separate Django service |
+| **Audit & Security** | Hash-chained audit logs, JWT auth with HttpOnly cookies, privilege-escalation guards |
+| **Platform Administration** | Separate staff portal for tenant management, user activation, audit viewing, and support sessions |
 
-```text
-apps/
-  api/                 NestJS REST and GraphQL API
-  web/                 Customer-facing Next.js application
-  platform-admin/      Internal platform administration application
-services/
-  ai-django/           Separate AI service
-packages/
-  config/              Shared tooling configuration
-  contracts/           Shared API types and schemas
-  ui/                  Shared UI components
-  utils/               Shared utilities
-database/
-  prisma/              Prisma schema and migrations
-  seeds/               Development-only seed command
-  docs/                ERD and database notes
-docs/
-  ADRs/                Architecture decision records
-  ...                  Product, architecture, security, API, and roadmap docs
+---
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph Browser["Browser / Client Applications"]
+        W[Web Dashboard<br/>apps/web<br/>Port 3000]
+        P[Platform Admin<br/>apps/platform-admin<br/>Port 3002]
+    end
+
+    subgraph API["NestJS API Layer<br/>apps/api<br/>Port 3001"]
+        REST[REST API<br/>`/api/v1/*`]
+        GQL[GraphQL<br/>`/graphql`]
+        SW[Swagger<br/>`/api/docs`]
+    end
+
+    subgraph Auth["Authentication & Authorization"]
+        JWT[JWT Access Token<br/>15 min lifetime]
+        RT[Refresh Token<br/>7 days, HttpOnly]
+        POLICY[PolicyService<br/>RBAC Enforcement]
+    end
+
+    subgraph Data["Data Layer"]
+        DB[(Neon PostgreSQL<br/>prisma ORM<br/>22 models)]
+        REDIS[(Redis<br/>BullMQ queues)]
+        S3[(S3-Compatible<br/>Object Storage)]
+    end
+
+    subgraph AI["AI Service (Optional)"]
+        DJ[Django AI<br/>services/ai-django<br/>Port 8000]
+    end
+
+    W -->|REST + GraphQL<br/>Same-origin proxy| API
+    P -->|REST<br/>Same-origin proxy| API
+    API --> Auth
+    API -->|Prisma Client| DB
+    API --> REDIS
+    API --> S3
+    API -->|Internal HTTP| DJ
+    DJ --> DB
+
+    style API fill:#003F5C,stroke:#333,stroke-width:2px,color:#fff
+    style DB fill:#58508D,stroke:#333,stroke-width:2px,color:#fff
+    style Auth fill:#FF6361,stroke:#333,stroke-width:2px,color:#fff
+    style AI fill:#8A508F,stroke:#333,stroke-width:2px,color:#fff
 ```
 
-## Requirements
+### Data Flow (Request Lifecycle)
 
-- Node.js 18 or newer
-- pnpm 8 or newer (the repository pins pnpm 8.15.0)
-- PostgreSQL for local API/database work
-- Python and `pip` if you plan to run the AI Django service
+```mermaid
+sequenceDiagram
+    participant U as User (Browser)
+    participant FE as Next.js App (Web / Platform-Admin)
+    participant PR as API Proxy (/api/backend/*)
+    participant API as NestJS API
+    participant POL as PolicyService
+    participant DB as Neon PostgreSQL
 
-Redis, object storage, email, payment, and AI provider services are optional for the current dashboard flows; configure them only when working on the features that use them.
+    U->>FE: Click /dashboard or /login
+    FE->>PR: Forward request + HttpOnly cookies
+    PR->>API: Forward with Bearer token
+    API->>POL: Verify JWT + check workspace/platform role
+    POL->>DB: Query user membership + role
+    DB-->>POL: Return context (active, role, workspaceId)
+    POL-->>API: Authorization decision
+    API->>DB: Tenant-scoped Prisma query (workspaceId filter)
+    DB-->>API: Return data
+    API-->>PR: JSON response
+    PR-->>FE: Strip auth tokens, forward body
+    FE-->>U: Render dashboard / page
+```
 
-## Local setup
+---
 
-### 1. Install dependencies
+## Repository Layout
 
-```sh
+```
+trifusion-ai/
+├── apps/
+│   ├── api/                 # NestJS REST + GraphQL API (port 3001)
+│   ├── web/                 # Customer-facing Next.js dashboard (port 3000)
+│   └── platform-admin/      # Platform staff admin portal (port 3002)
+├── packages/
+│   ├── ui/                  # Shared Material UI design system
+│   ├── contracts/           # Shared API types, schemas, role configs
+│   ├── config/              # Shared ESLint/TypeScript/tooling config
+│   └── utils/               # Shared utilities (formatting, dates, sanitization)
+├── services/
+│   └── ai-django/           # Separate Django AI service (port 8000, optional)
+├── database/
+│   ├── prisma/              # Prisma schema, migrations, client
+│   ├── seeds/               # Development-only seed script (guarded)
+│   └── docs/                # ERD and database notes
+├── infrastructure/
+│   ├── docker/              # Multi-stage Dockerfiles per service
+│   ├── deployment/          # Deployment configs
+│   └── monitoring/          # Monitoring/alerting configs
+├── tests/
+│   └── e2e/                 # Playwright E2E test suites
+├── scripts/                 # Code generation and utility scripts
+├── docs/                    # Comprehensive documentation
+└── package.json             # Root pnpm workspace config (Turborepo)
+```
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Monorepo / Build | Turborepo + pnpm workspaces | pnpm 8.15.0 |
+| Language | TypeScript | 5.x |
+| Customer Web | Next.js 16 (App Router), React 19 | Next.js 16.0.0 |
+| Platform Admin | Next.js 16 (App Router), React 19 | Next.js 16.0.0 |
+| API | NestJS 10 | NestJS 10.x |
+| UI Framework | Material UI (MUI) v7 + Emotion | MUI v7 |
+| API Docs | Swagger / OpenAPI | @nestjs/swagger |
+| GraphQL | Apollo GraphQL | GraphQL 16 |
+| Database | PostgreSQL (Neon) | Prisma ORM v5 |
+| Cache / Queues | Redis + BullMQ | ioredis v5 |
+| Auth | JWT (access 15m + refresh 7d) | passport-jwt |
+| AI Service | Python Django | Django 5.x |
+| Testing | Jest + Playwright | Jest 29, Playwright 1.64 |
+| Linting / Formatting | ESLint + Prettier | ESLint 8, Prettier 3 |
+
+---
+
+## Local Development Setup
+
+### Prerequisites
+
+- **Node.js 18 or newer**
+- **pnpm 8 or newer** (repository pins pnpm 8.15.0)
+- **Python 3.12+** (only if running the AI Django service)
+- **PostgreSQL** (Neon or local) for API/database work
+
+### 1. Clone and Install
+
+```bash
 git clone https://github.com/abx15/trifusion-ai.git
 cd trifusion-ai
 pnpm install
 ```
 
-### 2. Configure environment files
+This generates the Prisma client automatically via the `postinstall` hook.
 
-Copy the templates for the apps you intend to run:
+### 2. Configure Environment Files
+
+Copy the templates for each app you intend to run:
 
 ```text
 .env.example                         -> .env
@@ -76,115 +188,263 @@ apps/web/.env.example                -> apps/web/.env
 apps/platform-admin/.env.example     -> apps/platform-admin/.env
 ```
 
-Use fake/local values in development and keep real `.env` files out of version control. At minimum:
+Use fake/local values in development. Keep real `.env` files out of version control. At minimum:
 
-- Set `AUTH_SECRET` to a new, randomly generated secret in `apps/api/.env`.
-- Set database URLs in the root `.env` for Prisma CLI commands and in `apps/api/.env` for the running API. Keep the values pointed at the same **development** database.
-- Set `API_INTERNAL_URL` in each Next.js app's environment file to the NestJS API origin and `/api/v1` prefix (for local development, `http://localhost:3001/api/v1`).
-- Do not put credentials or secrets in `NEXT_PUBLIC_*` variables.
+- Set `AUTH_SECRET` (32+ characters) in `apps/api/.env`
+- Set `DATABASE_URL` and `DIRECT_URL` pointing to your **development** database
+- Set `API_INTERNAL_URL` in each Next.js app (e.g. `http://localhost:3001/api/v1`)
+- Never put credentials in `NEXT_PUBLIC_*` variables
 
-The root and app-specific `.env.example` files contain placeholder values, not deployable credentials. Do not copy production secrets into this repository.
+### 3. Database Setup (Development Only)
 
-### 3. Database setup (development only)
-
-For Neon, configure `DATABASE_URL` as the pooled runtime connection and `DIRECT_URL` as the direct, non-pooled connection for the **same non-production branch**. Use conservative pool/timeout parameters; for example, `connection_limit=5`, `pool_timeout=10`, and `connect_timeout=10` on the pooled URL. Neon may pause idle branches, so the first query after inactivity can take longer.
-
-Never run migrations, seeds, resets, or integration tests against the production/main database. The integration-test harness requires both `DATABASE_URL_TEST` (pooled) and `DIRECT_URL_TEST` (direct) for a separate disposable branch/database and refuses to fall back to `DATABASE_URL`.
-
-Generate the Prisma client and apply development migrations only after verifying that the configured URLs target your development database:
-
-```sh
+```bash
+# Generate Prisma client
 pnpm db:generate
+
+# Apply development migrations
 pnpm db:migrate
+
+# Open Prisma Studio (optional)
+pnpm db:studio
 ```
 
-Seeding is optional and restricted to a development-only database. Configure `DATABASE_URL_SEED` to a separate non-production database, set `NODE_ENV=development` and explicitly opt in with `ALLOW_DEV_SEED=true`, then run:
+### 4. Seed Test Data (Development Only)
 
-```sh
+Seeding is restricted to development databases. You must set a separate `DATABASE_URL_SEED` that differs from your runtime `DATABASE_URL`, and opt in explicitly:
+
+```bash
+NODE_ENV=development \
+ALLOW_DEV_SEED=true \
+DATABASE_URL_SEED=<separate-dev-database-url> \
 pnpm db:seed
 ```
 
-The seed command refuses production and does not fall back to the normal runtime database URL.
+**Test credentials after seeding** (all share password `Password123!`):
 
-### 4. Start the applications
+| Email | Role | Layer |
+|-------|------|-------|
+| owner@trifusion.dev | OWNER | Customer Workspace |
+| admin@trifusion.dev | TEAM_ADMIN | Customer Workspace |
+| member@trifusion.dev | MEMBER | Customer Workspace |
+| viewer@trifusion.dev | VIEWER | Customer Workspace |
+| superadmin@trifusion.dev | SUPERADMIN | Platform Staff |
+| platformadmin@trifusion.dev | PLATFORM_ADMIN | Platform Staff |
+| analyst@trifusion.dev | ANALYST | Platform Staff |
+| support@trifusion.dev | SUPPORT_AGENT | Platform Staff |
+
+See `TEST_CREDENTIALS.md` for full details.
+
+### 5. Start the Applications
 
 From the repository root, use separate terminals:
 
-```sh
-pnpm --filter @trifusion/api start:dev
-pnpm --filter @trifusion/web dev
-pnpm --filter @trifusion/platform-admin dev
+```bash
+# API backend
+pnpm --filter @trifusion/api start:dev      # http://localhost:3001
+
+# Customer web dashboard
+pnpm --filter @trifusion/web dev             # http://localhost:3000
+
+# Platform admin portal
+pnpm --filter @trifusion/platform-admin dev  # http://localhost:3002
 ```
 
-The AI service is optional:
+Optional AI service:
 
-```sh
+```bash
 cd services/ai-django
-python manage.py runserver 0.0.0.0:3003
+python manage.py runserver 0.0.0.0:8000     # http://localhost:8000
 ```
 
-Local URLs:
+### Local URLs
 
 | Application | URL |
-|---|---|
-| Customer web | http://localhost:3000 |
+|-------------|-----|
+| Customer Web Dashboard | http://localhost:3000 |
 | NestJS API | http://localhost:3001 |
-| Swagger/OpenAPI | http://localhost:3001/api/docs |
-| GraphQL endpoint | http://localhost:3001/graphql |
-| Platform admin | http://localhost:3002 |
-| AI Django service (optional) | http://localhost:3003 |
+| Swagger/OpenAPI Docs | http://localhost:3001/api/docs |
+| GraphQL Endpoint | http://localhost:3001/graphql |
+| Platform Admin Portal | http://localhost:3002 |
+| AI Django Service (optional) | http://localhost:8000 |
 
-GraphQL Playground and introspection are disabled in production. Production API errors are mapped to safe messages.
+GraphQL Playground and introspection are **disabled in production**. Production API errors are mapped to safe messages.
 
-## Common commands
+---
+
+## Common Commands
 
 | Command | Description |
-|---|---|
-| `pnpm dev` | Start workspace development tasks |
-| `pnpm build` | Build workspace packages and applications |
-| `pnpm lint` | Lint workspace packages |
-| `pnpm typecheck` | Type-check workspace packages |
-| `pnpm test` | Run workspace test scripts |
-| `pnpm --filter @trifusion/api exec jest --runInBand --testPathIgnorePatterns='integration.spec.ts'` | Run API unit tests without DB integration suites |
-| `pnpm --filter @trifusion/api exec jest --runInBand` | Run API unit and integration suites; requires isolated test database URLs |
-| `pnpm db:generate` | Generate Prisma client |
+|---------|-------------|
+| `pnpm dev` | Start all workspace development tasks |
+| `pnpm build` | Build all workspace packages and applications |
+| `pnpm lint` | Lint all workspace packages |
+| `pnpm typecheck` | Type-check all workspace packages |
+| `pnpm test` | Run all workspace test scripts |
+| `pnpm db:generate` | Generate Prisma client from schema |
 | `pnpm db:migrate` | Create/apply a development migration |
-| `pnpm db:migrate:deploy` | Deploy committed migrations to the explicitly configured database |
+| `pnpm db:migrate:deploy` | Deploy committed migrations to configured database |
 | `pnpm db:seed` | Run guarded development seed |
-| `pnpm db:studio` | Open Prisma Studio |
+| `pnpm db:studio` | Open Prisma Studio database GUI |
 
-Use the isolated test database configuration for integration tests; do not use `pnpm db:reset` against a shared or production database.
+### API-Specific Commands
 
-## Security and tenancy
+```bash
+# Run unit tests (excludes DB integration suites)
+pnpm --filter @trifusion/api exec jest --runInBand --testPathIgnorePatterns='integration.spec.ts'
 
-- Workspace membership, role checks, and resource scoping are enforced by the API; frontend role gating is only a user-experience aid.
-- Browser authentication is handled through same-origin proxy routes and HttpOnly cookies. Keep `API_INTERNAL_URL` server-only.
-- Authenticated dashboard/API responses are not publicly cached.
-- Do not commit `.env` files, access tokens, database credentials, or provider secrets.
-- Use separate development, test, and production databases. Never point test or seed variables at the production branch.
-- Review [the security guide](docs/SECURITY.md) before deployment.
+# Run all tests including integration (requires isolated test DB)
+pnpm --filter @trifusion/api exec jest --runInBand
+
+# Start API in debug mode
+pnpm --filter @trifusion/api start:debug
+```
+
+---
+
+## Authorization Model
+
+TriFusion AI uses **8 roles across 2 completely separate authorization layers**. They are never mixed.
+
+### Customer Workspace Roles (`apps/web`)
+
+Per-workspace (tenant-scoped) roles stored in `WorkspaceMember.role`:
+
+| Role | Level | Purpose | Can Create Resources? |
+|------|-------|---------|----------------------|
+| `OWNER` | 4 | Full workspace control, billing, member management, deletion | ✅ |
+| `TEAM_ADMIN` | 3 | Day-to-day team administration, member management | ✅ |
+| `MEMBER` | 2 | Standard contributor — creates/edits tasks, projects, clients | ✅ |
+| `VIEWER` | 1 | Read-only stakeholder — monitors progress | ❌ |
+
+### Platform Staff Roles (`apps/platform-admin`)
+
+Global platform roles stored in `PlatformStaffRole.role`:
+
+| Role | Level | Purpose | Customer Data Access? |
+|------|-------|---------|----------------------|
+| `SUPERADMIN` | 4 | Platform configuration, staff role management, global settings | ❌ (bounded only) |
+| `PLATFORM_ADMIN` | 3 | Tenant/user activation, operational administration | ❌ (bounded only) |
+| `ANALYST` | 1 | Global telemetry, usage quotas, performance metrics | ❌ |
+| `SUPPORT_AGENT` | 2 | Time-bounded, consent-based support sessions | ❌ (bounded session only) |
+
+**No platform role has ambient access to customer workspace content.** Emergency support access generates an immutable `PLATFORM_SUPPORT_ACCESS` audit event.
+
+See `docs/ROLES_REFERENCE.md` for the complete permissions matrix.
+
+---
+
+## API Reference
+
+### Base Conventions
+
+- **Base Prefix**: `/api/v1`
+- **Auth**: `Authorization: Bearer <access_token>`
+- **Tenant Context**: `X-Workspace-Id: <uuid>` (verified server-side)
+- **Errors**: Standard `{ statusCode, timestamp, path, message, errors }` envelope
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/api/v1/auth/register` | Register new user + personal workspace | No |
+| `POST` | `/api/v1/auth/login` | Authenticate with email + password | No |
+| `POST` | `/api/v1/auth/refresh` | Refresh expired access token | No |
+| `POST` | `/api/v1/auth/logout` | Invalidate refresh token | Yes |
+| `GET` | `/api/v1/auth/me` | Current user profile + workspaces | Yes |
+| `POST` | `/api/v1/auth/forgot-password` | Request password reset token | No |
+| `POST` | `/api/v1/auth/reset-password` | Reset password with valid token | No |
+
+### Workspace Domain REST APIs
+
+| Resource | Routes |
+|----------|--------|
+| Clients | `GET/POST /api/v1/workspaces/:workspaceId/clients` |
+| Clients | `GET/PATCH/DELETE(archive) /api/v1/workspaces/:workspaceId/clients/:clientId` |
+| Projects | `GET/POST /api/v1/workspaces/:workspaceId/projects` |
+| Projects | `GET/PATCH/DELETE(archive) /api/v1/workspaces/:workspaceId/projects/:projectId` |
+| Tasks | `GET/POST /api/v1/workspaces/:workspaceId/tasks` |
+| Tasks | `GET/PATCH /api/v1/workspaces/:workspaceId/tasks/:taskId` |
+| Tasks | `PATCH .../tasks/:taskId/status` |
+| Activity | `GET /api/v1/workspaces/:workspaceId/activity` |
+| Settings | `GET/PATCH /api/v1/workspaces/:workspaceId/settings` |
+| Analytics | `GET /api/v1/workspaces/:workspaceId/analytics/*` |
+
+### GraphQL (Read-Only)
+
+Endpoint: `POST /graphql`
+
+- `workspaceOverview(workspaceId, filters)` — project/task counts, overdue tasks, upcoming deadlines
+- `projects(workspaceId, limit, cursor, status, clientId)` — cursor-paginated projects
+- `tasks(workspaceId, limit, cursor, status, priority, projectId, assigneeId)` — cursor-paginated tasks
+- `recentActivity(workspaceId, limit, cursor)` — cursor-paginated activity feed
+
+GraphQL depth is capped at 5, complexity at 100, and resolver execution at 5 seconds. Introspection/playground disabled in production.
+
+### Platform Admin Endpoints
+
+| Method | Endpoint | Required Role |
+|--------|----------|---------------|
+| `GET` | `/api/v1/platform/metrics` | SUPERADMIN, PLATFORM_ADMIN, ANALYST |
+| `GET` | `/api/v1/platform/workspaces` | SUPERADMIN, PLATFORM_ADMIN |
+| `GET` | `/api/v1/platform/users` | SUPERADMIN, PLATFORM_ADMIN |
+| `GET` | `/api/v1/platform/staff/me` | Any platform staff |
+| `GET` | `/api/v1/platform/audit-logs` | SUPERADMIN, PLATFORM_ADMIN, ANALYST |
+
+See `docs/API_CONTRACTS.md` for complete request/response schemas and examples.
+
+---
+
+## Security & Tenancy
+
+- **Workspace membership, role checks, and resource scoping are enforced by the API.** Frontend role gating is UX only.
+- **Browser authentication** uses same-origin proxy routes and HttpOnly cookies. Access and refresh tokens are never stored in browser `localStorage`.
+- **Authenticated responses are not publicly cached.**
+- **Never commit `.env` files, access tokens, database credentials, or provider secrets.**
+- **Use separate development, test, and production databases.** Never point test/seed variables at production.
+- **Audit logs** are hash-chained for tamper-evidence and append-only (no update/delete endpoints).
+- **Last-owner protection** prevents a workspace from being left without an OWNER.
+- **Last-SUPERADMIN protection** prevents the final platform superadmin from being revoked.
+
+See `docs/SECURITY.md` for the complete security guide.
+
+---
 
 ## Documentation
 
-- [Product requirements](docs/PRD.md)
-- [System architecture](docs/SYSTEM_ARCHITECTURE.md)
-- [Database design](docs/DATABASE_DESIGN.md) and [ERD](database/docs/ERD.md)
-- [API contracts](docs/API_CONTRACTS.md)
-- [Authorization matrix](docs/AUTHORIZATION_MATRIX.md)
-- [Security guidance](docs/SECURITY.md)
-- [Architecture decision records](docs/ADRs/)
-- [Development roadmap and verification status](docs/DEVELOPMENT_ROADMAP.md)
+| Document | Path | Description |
+|----------|------|-------------|
+| Architecture Diagrams | `docs/ARCHITECTURE_DIAGRAMS.md` | Mermaid diagrams: system, data flow, auth, deployment |
+| User Guide | `docs/USER_GUIDE.md` | Role-specific dashboard walkthroughs for all 8 roles |
+| API Contracts | `docs/API_CONTRACTS.md` | Complete OpenAPI-style request/response reference |
+| Authorization Matrix | `docs/AUTHORIZATION_MATRIX.md` | Full permissions matrix for all 8 roles |
+| Roles Reference | `docs/ROLES_REFERENCE.md` | Role hierarchy, enforcement, code path |
+| Database Design | `docs/DATABASE_DESIGN.md` | Prisma schema, ERD, indexing, retention |
+| System Architecture | `docs/SYSTEM_ARCHITECTURE.md` | High-level architecture and technology decisions |
+| Deployment Guide | `docs/DEPLOYMENT.md` | Docker, environment variables, health checks |
+| Security Guide | `docs/SECURITY.md` | Security best practices and configuration |
+| Runbook | `docs/RUNBOOK.md` | Operational procedures and incident response |
+| Development Roadmap | `docs/DEVELOPMENT_ROADMAP.md` | Phase status and remaining work |
+| ADRs | `docs/ADRs/` | Architecture Decision Records (14 ADRs) |
+| Design System | `docs/DESIGN_SYSTEM.md` | Material UI theme, components, usage |
 
-The PRD contains an older phase ordering that differs from the current roadmap and dashboard brief. Reconcile that naming before planning the next phase; the roadmap records the discrepancy. No later phase should be considered complete unless its documented checks have actually passed.
+---
 
 ## Contributing
 
-1. Create a feature branch.
+1. Create a feature branch from `main`.
 2. Make a focused change and update directly related documentation.
-3. Run the relevant lint, typecheck, build, and test commands.
+3. Run lint, typecheck, build, and relevant tests.
 4. Never use the production database for development or test validation.
-5. Submit a pull request with the checks performed and any remaining gaps.
+5. Submit a pull request with checks performed and any remaining gaps noted.
+
+---
 
 ## License
 
-UNLICENSED - All rights reserved.
+UNLICENSED — All rights reserved.
+
+---
+
+## Support
+
+For deployment issues, see `docs/RUNBOOK.md` and `docs/INCIDENT_RESPONSE.md`. For questions about role behavior, see `docs/ROLES_REFERENCE.md` and `docs/AUTHORIZATION_MATRIX.md`.

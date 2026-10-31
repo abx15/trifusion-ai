@@ -1,100 +1,156 @@
 # TriFusion AI — Deployment Guide
 
+> **Document Status:** Active Specification  
+> **Last Updated:** 2026-10-31  
+> **Scope:** Production and staging deployment of all TriFusion AI services
+
+---
+
 ## Overview
 
-TriFusion AI is a monorepo with three deployable applications:
-- **NestJS API** (`apps/api`) — REST + GraphQL backend on port 3001
-- **Next.js Web** (`apps/web`) — Customer dashboard on port 3000
-- **Next.js Platform Admin** (`apps/platform-admin`) — Staff dashboard on port 3002
-- **Django AI** (`services/ai-django`) — AI backend on port 8000
+TriFusion AI is a monorepo with four deployable services:
+
+| Service | Location | Port | Technology |
+|---------|----------|------|------------|
+| Customer Web Dashboard | `apps/web` | 3000 | Next.js 16 |
+| NestJS API | `apps/api` | 3001 | NestJS 10 |
+| Platform Admin Portal | `apps/platform-admin` | 3002 | Next.js 16 |
+| Django AI Service | `services/ai-django` | 8000 | Django 5.x |
+
+---
 
 ## Prerequisites
 
-- Node.js v24+
-- pnpm 8+
-- Python 3.12+ (for AI service)
-- Neon PostgreSQL (production database)
-- Redis (for BullMQ job queues)
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Node.js | >=18 | Runtime for Next.js and NestJS apps |
+| pnpm | >=8 | Package manager (pinned to 8.15.0) |
+| Python | >=3.12 | Django AI service |
+| pip | latest | Python package management |
+| PostgreSQL | 15+ | Primary database (Neon recommended) |
+| Redis | 7+ | BullMQ job queues, caching |
+| Docker | 25+ | Containerized deployment |
+| Docker Compose | 2.20+ | Multi-service orchestration |
+
+---
 
 ## Environment Variables
 
-### Required (all apps)
+### Root `.env` (Required for all apps)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | Neon PostgreSQL connection string | `postgresql://...` |
-| `DIRECT_URL` | Direct Neon connection (migrations) | `postgresql://...` |
-| `NEXTAUTH_SECRET` | Session signing secret | `32+ random chars` |
-| `JWT_SECRET` | JWT signing secret | `32+ random chars` |
-| `API_INTERNAL_URL` | Internal API base URL | `http://api:3001/api/v1` |
-| `NEXT_PUBLIC_API_URL` | Public API URL for browser | `https://api.trifusion.ai` |
-| `AI_SERVICE_URL` | Django AI backend URL | `http://django:8000` |
-| `AI_SERVICE_SHARED_SECRET` | HMAC secret for service tokens | `32+ random chars` |
-| `REDIS_URL` | Redis connection for BullMQ | `redis://redis:6379` |
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `DATABASE_URL` | Neon PostgreSQL pooled connection | Yes | `postgresql://...` |
+| `DIRECT_URL` | Direct Neon connection for migrations | Yes | `postgresql://...` |
+| `NODE_ENV` | Environment mode | No | `development` \| `production` |
+| `PORT` | API server port | No | `3001` |
 
-### Optional
+### `apps/api/.env` (Required)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment | `development` |
-| `PORT` | API server port | `3001` |
-| `STRIPE_SECRET_KEY` | Stripe API key | — |
-| `SENDGRID_API_KEY` | Email service key | — |
-| `AWS_S3_BUCKET` | File storage bucket | — |
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `DATABASE_URL` | Neon PostgreSQL connection | Yes | `postgresql://...` |
+| `DIRECT_URL` | Direct connection for Prisma migrations | Yes | `postgresql://...` |
+| `AUTH_SECRET` | JWT signing secret (32+ chars in prod) | Yes | `your-32-char-secret-here` |
+| `AUTH_EXPIRES_IN` | Access token lifetime | No | `15m` |
+| `AUTH_REFRESH_EXPIRES_IN` | Refresh token lifetime | No | `7d` |
+| `WEB_URL` | Customer web origin | No | `https://app.trifusion.ai` |
+| `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | No | `https://app.trifusion.ai,https://admin.trifusion.ai` |
+| `REDIS_URL` | Redis connection for BullMQ | No | `redis://redis:6379` |
+| `AI_SERVICE_URL` | Django AI backend URL | No | `http://django:8000` |
+| `AI_SERVICE_SHARED_SECRET` | HMAC secret for service tokens | No | `32-char-hmac-secret` |
+| `STRIPE_SECRET_KEY` | Stripe payment key | No | `sk_live_...` |
+| `SENDGRID_API_KEY` | Email service key | No | `SG....` |
+| `AWS_S3_BUCKET` | File storage bucket name | No | `trifusion-files` |
+
+### `apps/web/.env` (Required)
+
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `NEXT_PUBLIC_API_URL` | Public API URL (no credentials) | Yes | `https://api.trifusion.ai` |
+| `API_INTERNAL_URL` | Internal API URL (server-only) | Yes | `http://api:3001/api/v1` |
+
+### `apps/platform-admin/.env` (Required)
+
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `NEXT_PUBLIC_API_URL` | Public API URL (no credentials) | Yes | `https://api.trifusion.ai` |
+| `API_INTERNAL_URL` | Internal API URL (server-only) | Yes | `http://api:3001/api/v1` |
+
+> ⚠️ **Never commit `.env` files containing real credentials.** Use `.env.example` with placeholder values only.
+
+---
 
 ## Database Setup
 
-```bash
-# Generate Prisma client
-pnpm --filter @trifusion/api exec prisma generate
-
-# Run migrations against production database
-pnpm --filter @trifusion/api exec prisma migrate deploy
-
-# Seed (only in non-production)
-pnpm --filter @trifusion/api exec prisma db seed
-```
-
-## Install Dependencies
+### 1. Generate Prisma Client
 
 ```bash
-pnpm install
+pnpm db:generate
 ```
 
-## Build
+### 2. Run Migrations
+
+**Development:**
+```bash
+pnpm db:migrate
+```
+
+**Production:**
+```bash
+pnpm db:migrate:deploy
+```
+
+> ⚠️ Never run migrations against the production/main database from a local development machine. Use CI/CD or a dedicated deployment pipeline.
+
+### 3. Seed (Development Only)
 
 ```bash
-# Build all workspaces
-pnpm build
-
-# Or build individually
-pnpm --filter @trifusion/api build
-pnpm --filter @trifusion/web build
-pnpm --filter @trifusion/platform-admin build
+NODE_ENV=development \
+ALLOW_DEV_SEED=true \
+DATABASE_URL_SEED=<separate-dev-database-url> \
+pnpm db:seed
 ```
 
-## Run (Development)
+The seed script refuses to run in production and requires a separate `DATABASE_URL_SEED` that differs from `DATABASE_URL`.
+
+---
+
+## Local Development
+
+### Start All Services
 
 ```bash
-# Run all apps in parallel
-pnpm dev
+# Terminal 1: API
+pnpm --filter @trifusion/api start:dev
 
-# Or individually
-pnpm --filter @trifusion/api dev      # Port 3001
-pnpm --filter @trifusion/web dev       # Port 3000
-pnpm --filter @trifusion/platform-admin dev  # Port 3002
+# Terminal 2: Web Dashboard
+pnpm --filter @trifusion/web dev
+
+# Terminal 3: Platform Admin
+pnpm --filter @trifusion/platform-admin dev
+
+# Terminal 4: AI Django (optional)
+cd services/ai-django
+python manage.py runserver 0.0.0.0:8000
 ```
 
-## Run (Production)
+### Local URLs
 
-Build first, then start:
+| Service | URL |
+|---------|-----|
+| Customer Web | http://localhost:3000 |
+| API | http://localhost:3001 |
+| Swagger Docs | http://localhost:3001/api/docs |
+| GraphQL | http://localhost:3001/graphql |
+| Platform Admin | http://localhost:3002 |
+| AI Django | http://localhost:8000 |
 
-```bash
-pnpm build
-pnpm start:prod
-```
+---
 
-## Docker
+## Docker Deployment
+
+### Build Images
 
 Multi-stage Dockerfiles are provided for each service:
 
@@ -112,20 +168,376 @@ docker build -t trifusion-platform-admin -f apps/platform-admin/Dockerfile .
 docker build -t trifusion-django -f services/ai-django/Dockerfile .
 ```
 
+### Docker Compose
+
+Create a `docker-compose.yml` in the repository root:
+
+```yaml
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - DIRECT_URL=${DIRECT_URL}
+      - AUTH_SECRET=${AUTH_SECRET}
+      - NODE_ENV=production
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - REDIS_URL=redis://redis:6379
+      - AI_SERVICE_URL=http://django:8000
+      - AI_SERVICE_SHARED_SECRET=${AI_SERVICE_SHARED_SECRET}
+    depends_on:
+      - redis
+    networks:
+      - trifusion
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - API_INTERNAL_URL=http://api:3001/api/v1
+    depends_on:
+      - api
+    networks:
+      - trifusion
+
+  platform-admin:
+    build:
+      context: .
+      dockerfile: apps/platform-admin/Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - API_INTERNAL_URL=http://api:3001/api/v1
+    depends_on:
+      - api
+    networks:
+      - trifusion
+
+  django:
+    build:
+      context: ./services/ai-django
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - AI_SERVICE_SHARED_SECRET=${AI_SERVICE_SHARED_SECRET}
+    depends_on:
+      - redis
+    networks:
+      - trifusion
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - trifusion
+
+networks:
+  trifusion:
+    driver: bridge
+```
+
+Run with:
+
+```bash
+docker-compose up -d
+```
+
+---
+
+## Kubernetes Deployment
+
+### Namespace and ConfigMap
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trifusion
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trifusion-config
+  namespace: trifusion
+data:
+  NODE_ENV: "production"
+  DATABASE_URL: ${DATABASE_URL}
+  DIRECT_URL: ${DIRECT_URL}
+  AUTH_SECRET: ${AUTH_SECRET}
+  API_INTERNAL_URL: "http://api-service:3001/api/v1"
+  NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+  REDIS_URL: "redis://redis-service:6379"
+  AI_SERVICE_URL: "http://django-service:8000"
+  AI_SERVICE_SHARED_SECRET: ${AI_SERVICE_SHARED_SECRET}
+```
+
+### API Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: trifusion
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: trifusion-api:latest
+        ports:
+        - containerPort: 3001
+        envFrom:
+        - configMapRef:
+            name: trifusion-config
+        - secretRef:
+            name: trifusion-secrets
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+```
+
+### Web Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: trifusion
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: web
+        image: trifusion-web:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - configMapRef:
+            name: trifusion-config
+        - secretRef:
+            name: trifusion-secrets
+```
+
+### Services and Ingress
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+  namespace: trifusion
+spec:
+  selector:
+    app: api
+  ports:
+  - port: 3001
+    targetPort: 3001
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+  namespace: trifusion
+spec:
+  selector:
+    app: web
+  ports:
+  - port: 3000
+    targetPort: 3000
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trifusion-ingress
+  namespace: trifusion
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+  - hosts:
+    - api.trifusion.ai
+    - app.trifusion.ai
+    - admin.trifusion.ai
+    secretName: trifusion-tls
+  rules:
+  - host: api.trifusion.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api-service
+            port:
+              number: 3001
+  - host: app.trifusion.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 3000
+  - host: admin.trifusion.ai
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-service
+            port:
+              number: 3002
+```
+
+Apply with:
+
+```bash
+kubectl apply -f k8s/
+```
+
+---
+
+## CI/CD Pipeline
+
+### GitHub Actions (`.github/workflows/ci.yml`)
+
+The repository includes a CI workflow that:
+
+1. **Lint** — Runs ESLint across all workspaces
+2. **Typecheck** — Runs TypeScript type checking across all packages
+3. **Build** — Runs `turbo run build` for production verification
+4. **Test** — Runs Jest unit tests (integration tests require `DATABASE_URL_TEST`)
+
+### Required CI Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `DATABASE_URL_TEST` | Isolated test database URL (pooled) |
+| `DIRECT_URL_TEST` | Isolated test database URL (direct) |
+| `DOCKERHUB_USERNAME` | Docker Hub username for image publishing |
+| `DOCKERHUB_TOKEN` | Docker Hub access token |
+| `SLACK_WEBHOOK` | Slack webhook for deployment notifications |
+
+### Release Process
+
+1. Create a release branch from `main`
+2. Update version in `package.json` files
+3. Run `pnpm build` and `pnpm typecheck`
+4. Run `pnpm test` (unit tests only in CI)
+5. Create a GitHub release with changelog
+6. Deploy to staging, then production
+
+---
+
 ## Health Checks
 
-- API: `GET /health` and `GET /ready` (port 3001)
-- Web: `GET /api/health` (port 3000)
-- Platform Admin: `GET /api/health` (port 3002)
-- Django: `GET /health/` (port 8000)
+| Service | Endpoint | Method | Expected Response |
+|---------|----------|--------|-------------------|
+| API | `/health` | GET | `{"status": "ok", ...}` |
+| API | `/ready` | GET | `{"status": "ready", ...}` |
+| Web | `/api/health` | GET | `200 OK` |
+| Platform Admin | `/api/health` | GET | `200 OK` |
+| Django | `/health/` | GET | `200 OK` |
 
-## Security
+---
 
-- Never commit `.env` files containing real credentials
-- Use `.env.example` with placeholder values
-- Rotate secrets regularly (see SECRET_ROTATION.md)
-- All API cookies are HttpOnly, Secure, SameSite=strict
+## Security Checklist
+
+- [ ] `.env` files are not committed to version control
+- [ ] `AUTH_SECRET` is 32+ characters in production
+- [ ] `CORS_ORIGINS` only contains trusted domains
+- [ ] Database URLs point to non-production branches in staging
+- [ ] SSL/TLS is enforced at the load balancer level
+- [ ] HttpOnly, Secure, SameSite=strict cookies are configured
+- [ ] Secrets are stored in a secret manager (not in plain text)
+- [ ] Audit logs are enabled and append-only
+- [ ] Redis is not exposed to the public internet
+- [ ] S3 bucket has private access with signed URLs
+
+---
+
+## Monitoring & Observability
+
+| Tool | Purpose | Endpoint |
+|------|---------|----------|
+| Prometheus | Metrics collection | `:9090` |
+| Grafana | Dashboards | `:3000` |
+| Sentry | Error tracking | Configured in API |
+| Loki | Log aggregation | `:3100` |
+
+Structured logs with correlation IDs (`X-Request-Id`) are emitted in JSON format for all API requests.
+
+---
+
+## Rollback Procedure
+
+1. Identify the last known-good Docker image tag
+2. Update the deployment manifest to use the previous image
+3. Apply the change: `kubectl apply -f k8s/`
+4. Verify health checks pass
+5. If issues persist, scale down to 0 replicas and investigate
+
+---
 
 ## Support
 
-For deployment issues, see RUNBOOK.md and INCIDENT_RESPONSE.md.
+For deployment issues, see:
+- `docs/RUNBOOK.md` — Operational procedures
+- `docs/INCIDENT_RESPONSE.md` — Incident response guide
+- `docs/STATUS_REPORT.md` — Current implementation status
