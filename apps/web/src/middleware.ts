@@ -7,8 +7,8 @@ export function middleware(request: NextRequest) {
 
   if (
     request.nextUrl.pathname.startsWith('/dashboard') &&
-    !request.cookies.has('trifusion_access') &&
-    !request.cookies.has('trifusion_refresh')
+    !request.cookies.has('accessToken') &&
+    !request.cookies.has('refreshToken')
   ) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set(

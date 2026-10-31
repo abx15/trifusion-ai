@@ -11,9 +11,19 @@ import { formatStructuredLog } from '@trifusion/utils';
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
+    const type = host.getType< string >();
+    let request: Request | undefined;
+    let response: Response | undefined;
+
+    if (type === 'graphql') {
+      const gqlContext = host.getArgs()[2] as { req?: Request; res?: Response } | undefined;
+      request = gqlContext?.req;
+      response = gqlContext?.res;
+    } else {
+      const ctx = host.switchToHttp();
+      response = ctx.getResponse<Response>();
+      request = ctx.getRequest<Request>();
+    }
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
@@ -39,12 +49,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     }
 
-    const correlationId = request.correlationId || (response.getHeader('X-Request-Id') as string);
+    const correlationId = request?.correlationId || (response?.getHeader('X-Request-Id') as string);
 
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: request?.url,
       correlationId,
       message,
       ...(errors.length > 0 ? { errors } : {}),
@@ -56,12 +66,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
         level: status >= 500 ? 'error' : 'warn',
         message: `HTTP ${status} Exception: ${message}`,
         correlationId,
-        path: request.url,
+        path: request?.url,
         statusCode: status,
         errors,
       }),
     );
 
-    response.status(status).json(errorResponse);
+    if (type === 'graphql') {
+      throw exception;
+    }
+
+    response?.status(status).json(errorResponse);
   }
 }

@@ -71,19 +71,18 @@ TEMPLATES = []
 WSGI_APPLICATION = "ai_service.wsgi.application"
 ASGI_APPLICATION = "ai_service.asgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("DJANGO_DATABASE_NAME", "trifusion_ai"),
-        "USER": os.environ.get("DJANGO_DATABASE_USER", "postgres"),
-        "PASSWORD": os.environ.get("DJANGO_DATABASE_PASSWORD", ""),
-        "HOST": os.environ.get("DJANGO_DATABASE_HOST", "localhost"),
-        "PORT": os.environ.get("DJANGO_DATABASE_PORT", "5432"),
-        "OPTIONS": {
-            "sslmode": os.environ.get("DJANGO_DATABASE_SSLMODE", "require"),
-        },
+if os.environ.get("DATABASE_URL"):
+    import dj_database_url
+    DATABASES = {
+        "default": dj_database_url.parse(os.environ.get("DATABASE_URL"), conn_max_age=600),
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = []
 

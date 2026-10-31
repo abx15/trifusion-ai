@@ -11,7 +11,7 @@ import { Observable, TimeoutError, catchError, throwError, timeout } from 'rxjs'
 export class GraphQLTimeoutInterceptor implements NestInterceptor {
   intercept(_context: ExecutionContext, next: CallHandler): Observable<unknown> {
     return next.handle().pipe(
-      timeout({ each: 5000 }),
+      timeout({ each: 30000 }),
       catchError((error: unknown) => {
         if (error instanceof TimeoutError) {
           return throwError(() => new RequestTimeoutException('GraphQL resolver timed out'));

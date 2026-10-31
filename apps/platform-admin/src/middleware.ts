@@ -7,8 +7,8 @@ export function middleware(request: NextRequest) {
   if (
     !isLogin &&
     !isApi &&
-    !request.cookies.has('tf_platform_access') &&
-    !request.cookies.has('tf_platform_refresh')
+    !request.cookies.has('accessToken') &&
+    !request.cookies.has('refreshToken')
   ) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', request.nextUrl.pathname);

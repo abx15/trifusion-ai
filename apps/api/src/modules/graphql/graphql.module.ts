@@ -53,6 +53,9 @@ registerEnumType(ActivityAction, { name: 'ActivityAction' });
           introspection: !isProd,
           validationRules: [createGraphQLQueryLimits({ maxDepth: 5, maxComplexity: 100 })],
           formatError: (formattedError) => {
+            if (!isProd) {
+              return formattedError;
+            }
             if (formattedError.extensions?.code === 'INTERNAL_SERVER_ERROR') {
               return {
                 message: 'An unexpected error occurred',
