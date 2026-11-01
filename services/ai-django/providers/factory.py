@@ -42,7 +42,10 @@ def get_provider() -> Any:
             )
         api_key = os.environ.get("AI_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            raise RuntimeError("AI_PROVIDER=anthropic requires AI_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY")
+            raise RuntimeError(
+                "AI_PROVIDER=anthropic requires "
+                "AI_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY"
+            )
         return AnthropicProvider(api_key=api_key)
 
     raise ValueError(f"Unsupported AI_PROVIDER: {provider_name}")

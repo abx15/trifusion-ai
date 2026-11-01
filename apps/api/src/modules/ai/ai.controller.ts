@@ -315,10 +315,13 @@ export class AiController {
 
     const reader = streamInfo.response.body!.getReader();
     try {
-      while (true) {
+      let done = false;
+      while (!done) {
         const chunk = await reader.read();
-        if (chunk.done) break;
-        response.write(Buffer.from(chunk.value));
+        done = chunk.done;
+        if (!done && chunk.value) {
+          response.write(Buffer.from(chunk.value));
+        }
       }
     } finally {
       reader.releaseLock();

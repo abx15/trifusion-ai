@@ -71,14 +71,13 @@ export function PlatformStaffProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (pathname === '/login') {
-      setIsLoading(false);
       return;
     }
     void refresh();
   }, [pathname, refresh]);
 
   return (
-    <PlatformStaffContext.Provider value={{ staff, isLoading, statusCode, errorMessage, refresh }}>
+    <PlatformStaffContext.Provider value={{ staff, isLoading: pathname !== '/login' && isLoading, statusCode, errorMessage, refresh }}>
       {children}
     </PlatformStaffContext.Provider>
   );

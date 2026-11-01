@@ -122,7 +122,7 @@ const [auditLogs, setAuditLogs] = useState<any[]>([]);
                       {log.action?.replaceAll('_', ' ') || 'Unknown action'}
                     </p>
                     <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                      {log.actorId?.slice(0, 8) || 'Unknown'} · {new Date(log.createdAt || Date.now()).toLocaleDateString()}
+                      {log.actorId?.slice(0, 8) || 'Unknown'} · {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Unknown date'}
                     </p>
                   </div>
                 ))}
