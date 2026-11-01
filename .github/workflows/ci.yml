@@ -74,6 +74,27 @@ jobs:
   test:
     name: Test (Node & Python)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: trifusion
+          POSTGRES_PASSWORD: trifusion
+          POSTGRES_DB: trifusion_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U trifusion -d trifusion_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
+      DIRECT_URL: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
+      DATABASE_URL_TEST: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
+      DIRECT_URL_TEST: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
+      AUTH_SECRET: ci-test-secret-key-at-least-16-chars
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,6 +122,9 @@ jobs:
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Apply Prisma test schema
+        run: pnpm --filter @trifusion/database migrate:deploy
 
       - name: Run test suite
         run: pnpm test

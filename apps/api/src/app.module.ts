@@ -30,6 +30,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
 import { BillingModule } from './modules/billing/billing.module';
 import { EmailModule } from './modules/email/email.module';
+import path from 'node:path';
 
 @Module({
   imports: [
@@ -37,7 +38,12 @@ import { EmailModule } from './modules/email/email.module';
       isGlobal: true,
       load: [configuration],
       validate: validateEnvironment,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: [
+        path.resolve(process.cwd(), '.env.local'),
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(__dirname, '../.env.local'),
+        path.resolve(__dirname, '../.env'),
+      ],
     }),
     ThrottlerModule.forRoot([
       {

@@ -21,6 +21,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 import { CookieParserMiddleware } from './common/middleware/cookie-parser.middleware';
+import path from 'node:path';
 
 @Module({
   imports: [
@@ -28,7 +29,12 @@ import { CookieParserMiddleware } from './common/middleware/cookie-parser.middle
       isGlobal: true,
       load: [configuration],
       validate: validateEnvironment,
-      envFilePath: ['.env.local', '.env'],
+      envFilePath: [
+        path.resolve(process.cwd(), '.env.local'),
+        path.resolve(process.cwd(), '.env'),
+        path.resolve(__dirname, '../.env.local'),
+        path.resolve(__dirname, '../.env'),
+      ],
     }),
     ThrottlerModule.forRoot([
       {
