@@ -221,3 +221,13 @@ Backend modules verified: auth, workspaces, clients, projects, tasks, activity, 
 2. Configure Playwright E2E tests
 3. Fix Django AI lint (70 ruff errors)
 4. Run cross-tenant RBAC tests against Neon
+
+## Audit Addendum — 2026-11-01
+
+- `pnpm dev`: **PASS** — Web 3000, NestJS 3001, Platform Admin 3002, Django 3003.
+- NestJS typecheck/build: **PASS**.
+- Django checks/tests: **PASS** — system check clean, 10 tests passed.
+- All eight seeded role logins: **PASS** at the authentication endpoint.
+- Company-workspace role resolution: **PASS** after preferring COMPANY over personal OWNER memberships.
+- Full CRUD, token-expiry, cross-tenant negative, WebSocket, and external-provider verification: **NOT TESTED**.
+- AI SSE proxy: **PARTIAL**; the current NestJS endpoint returns stream metadata rather than forwarding the Django stream.

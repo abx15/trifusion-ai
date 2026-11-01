@@ -30,10 +30,9 @@ def get_provider() -> Any:
     if provider_name == "openai":
         if not OPENAI_AVAILABLE:
             raise ImportError("OpenAI package not installed. Add 'openai' to requirements.txt")
-        api_key = os.environ.get("AI_OPENAI_API_KEY")
+        api_key = os.environ.get("AI_OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            # Fall back to mock if no API key
-            return MockProvider()
+            raise RuntimeError("AI_PROVIDER=openai requires AI_OPENAI_API_KEY or OPENAI_API_KEY")
         return OpenAIProvider(api_key=api_key)
 
     if provider_name == "anthropic":
@@ -41,11 +40,9 @@ def get_provider() -> Any:
             raise ImportError(
                 "Anthropic package not installed. Add 'anthropic' to requirements.txt"
             )
-        api_key = os.environ.get("AI_ANTHROPIC_API_KEY")
+        api_key = os.environ.get("AI_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            # Fall back to mock if no API key
-            return MockProvider()
+            raise RuntimeError("AI_PROVIDER=anthropic requires AI_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY")
         return AnthropicProvider(api_key=api_key)
 
-    # Default to mock for unknown providers
-    return MockProvider()
+    raise ValueError(f"Unsupported AI_PROVIDER: {provider_name}")

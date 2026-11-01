@@ -30,8 +30,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Company workspaces carry the user's collaboration role. Prefer one when
+    // available so a personal OWNER space cannot mask TEAM_ADMIN/MEMBER/VIEWER.
     const firstWorkspace =
-      user.workspaces.find((item) => item.type === 'PERSONAL') ?? user.workspaces[0];
+      user.workspaces.find((item) => item.type === 'COMPANY') ??
+      user.workspaces.find((item) => item.type === 'PERSONAL') ??
+      user.workspaces[0];
     let cancelled = false;
     setIsValidating(true);
     apiClient.workspaces

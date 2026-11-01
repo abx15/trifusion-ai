@@ -35,6 +35,6 @@ import { PlatformRolesGuard } from './guards/platform-roles.guard';
       useClass: JwtAuthGuard,
     },
   ],
-  exports: [AuthService, WorkspaceGuard, PlatformRolesGuard],
+  exports: [AuthService, WorkspaceGuard, PlatformRolesGuard, JwtModule],
 })
 export class AuthModule {}

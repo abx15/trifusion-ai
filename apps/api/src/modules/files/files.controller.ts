@@ -1,36 +1,39 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { WorkspaceRole } from '@prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentWorkspace, RequireWorkspaceRole } from '../auth/decorators/authorization.decorators';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { FilesService } from './files.service';
 
 interface FileIntentBody {
-  workspaceId: string;
   originalName: string;
   size: number;
   contentType: string;
 }
 
 interface FileFinalizeBody {
-  workspaceId: string;
   objectKey: string;
 }
 
-interface FileGetBody {
-  workspaceId: string;
-}
-
-interface FileRemoveBody {
-  workspaceId: string;
-}
-
-@Controller('files')
-@UseGuards(JwtAuthGuard)
+@Controller('workspaces/:workspaceId/files')
+@UseGuards(JwtAuthGuard, WorkspaceGuard)
 export class FilesController {
   constructor(private readonly service: FilesService) {}
 
+  @Get()
+  list(@CurrentWorkspace('workspaceId') workspaceId: string) {
+    return this.service.list(workspaceId);
+  }
+
   @Post('intent')
-  intent(@CurrentUser() user: { id: string }, @Body() body: FileIntentBody) {
-    return this.service.createIntent(body.workspaceId, user.id, {
+  @RequireWorkspaceRole(WorkspaceRole.MEMBER)
+  intent(
+    @CurrentUser() user: { id: string },
+    @CurrentWorkspace('workspaceId') workspaceId: string,
+    @Body() body: FileIntentBody,
+  ) {
+    return this.service.createIntent(workspaceId, user.id, {
       originalName: body.originalName,
       contentType: body.contentType,
       size: body.size,
@@ -38,17 +41,19 @@ export class FilesController {
   }
 
   @Post(':id/finalize')
-  finalize(@CurrentUser() _user: { id: string }, @Param('id') id: string, @Body() body: FileFinalizeBody) {
-    return this.service.finalize(id, body.workspaceId);
+  @RequireWorkspaceRole(WorkspaceRole.MEMBER)
+  finalize(@CurrentWorkspace('workspaceId') workspaceId: string, @Param('id') id: string, @Body() body: FileFinalizeBody) {
+    return this.service.finalize(id, workspaceId, body.objectKey);
   }
 
   @Get(':id')
-  get(@CurrentUser() _user: { id: string }, @Param('id') id: string, @Body() body: FileGetBody) {
-    return this.service.get(body.workspaceId, id);
+  get(@CurrentWorkspace('workspaceId') workspaceId: string, @Param('id') id: string) {
+    return this.service.get(workspaceId, id);
   }
 
   @Delete(':id')
-  remove(@CurrentUser() _user: { id: string }, @Param('id') id: string, @Body() body: FileRemoveBody) {
-    return this.service.remove(body.workspaceId, id);
+  @RequireWorkspaceRole(WorkspaceRole.TEAM_ADMIN)
+  remove(@CurrentWorkspace('workspaceId') workspaceId: string, @Param('id') id: string) {
+    return this.service.remove(workspaceId, id);
   }
 }

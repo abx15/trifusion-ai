@@ -8,9 +8,10 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  Res,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response as ExpressResponse } from 'express';
 import { AiService } from './ai.service';
 import { AiGuard, RequireAiCapability } from './ai.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -274,6 +275,7 @@ export class AiController {
     @CurrentWorkspace() workspace: { role: WorkspaceRole },
     @Body() dto: AssistantDto,
     @Req() req: Request,
+    @Res() response: ExpressResponse,
   ) {
     if (dto.workspace_id !== workspaceId) {
       throw new ForbiddenException('Workspace ID mismatch');
@@ -305,10 +307,22 @@ export class AiController {
       metadata: { capability: 'workspace_assistant_stream', question: dto.question.substring(0, 200) },
     });
 
-    return {
-      ...streamInfo,
-      // Never expose Django URL or service token to the browser
-      stream_url: `/api/v1/workspaces/${workspaceId}/ai/assistant/stream`,
-    };
+    response.status(200);
+    response.setHeader('Content-Type', 'text/event-stream');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.setHeader('Connection', 'keep-alive');
+    response.setHeader('X-Request-Id', streamInfo.requestId);
+
+    const reader = streamInfo.response.body!.getReader();
+    try {
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        response.write(Buffer.from(chunk.value));
+      }
+    } finally {
+      reader.releaseLock();
+      response.end();
+    }
   }
 }

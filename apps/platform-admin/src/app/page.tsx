@@ -30,11 +30,14 @@ const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (!staff) return;
-    Promise.all([
-      fetchJson('/platform/v1/metrics').then((d) => d && setMetrics(d)),
-      fetchJson('/platform/v1/workspaces?limit=10').then((d) => d && setWorkspaces(Array.isArray(d) ? d : d.data || [])),
-      fetchJson('/platform/v1/audit-logs?limit=10').then((d) => d && setAuditLogs(Array.isArray(d) ? d : d.data || [])),
-    ]);
+    const canSeeMetrics = ['SUPERADMIN', 'PLATFORM_ADMIN', 'ANALYST'].includes(staff.role);
+    const canSeeWorkspaces = ['SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role);
+    const canSeeAudit = ['SUPERADMIN', 'PLATFORM_ADMIN', 'ANALYST'].includes(staff.role);
+    const requests: Promise<void>[] = [];
+    if (canSeeMetrics) requests.push(fetchJson('/platform/v1/metrics').then((data) => { if (data) setMetrics(data); }));
+    if (canSeeWorkspaces) requests.push(fetchJson('/platform/v1/workspaces?limit=10').then((data) => { if (data) setWorkspaces(Array.isArray(data) ? data : data.data || []); }));
+    if (canSeeAudit) requests.push(fetchJson('/platform/v1/audit-logs?limit=10').then((data) => { if (data) setAuditLogs(Array.isArray(data) ? data : data.data || []); }));
+    void Promise.all(requests);
   }, [staff]);
 
   if (isLoading) {
@@ -60,29 +63,34 @@ const [auditLogs, setAuditLogs] = useState<any[]>([]);
     );
   }
 
+  const platformRole = staff.role;
+  const config = platformRole === 'ANALYST'
+    ? { design: 'dark', layout: 'bento' }
+    : platformRole === 'SUPPORT_AGENT'
+      ? { design: 'helpdesk', layout: 'kanban' }
+      : platformRole === 'SUPERADMIN'
+        ? { design: 'glassmorphism', layout: 'bento' }
+        : { design: 'minimalist', layout: 'grid' };
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+    <div className={`platform-dashboard platform-${config.design} platform-layout-${config.layout}`}>
+      <div className="platform-hero">
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, marginBottom: 4 }}>
-            Platform Dashboard
-          </h1>
-          <p style={{ color: '#64748b' }}>
-            Welcome, {staff.role.replaceAll('_', ' ')}
-          </p>
+          <span className="platform-eyebrow">{config.design} operations</span>
+          <h1>{platformRole === 'SUPPORT_AGENT' ? 'Support command center' : platformRole === 'ANALYST' ? 'Data & telemetry' : 'Platform Dashboard'}</h1>
+          <p>Welcome, {staff.role.replaceAll('_', ' ')}. Your role-specific control surface is ready.</p>
         </div>
-        <Badge variant="default">{staff.role}</Badge>
+        <Badge variant="default" className="platform-role">{staff.role}</Badge>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+      <div className="platform-kpis">
         <KPICard title="Total Users" value={metrics?.total_users ?? '--'} />
         <KPICard title="Workspaces" value={metrics?.total_workspaces ?? workspaces.length ?? '--'} />
         <KPICard title="Active Projects" value={metrics?.total_projects ?? '--'} />
         <KPICard title="Audit Events" value={metrics?.total_audit_events ?? '--'} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card variant="elevated" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div className="platform-content-grid">
+        <Card className="platform-panel" variant="elevated">
           <CardContent style={{ flex: 1 }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 12 }}>Recent Workspaces</h3>
             {workspaces.length > 0 ? (
@@ -103,7 +111,7 @@ const [auditLogs, setAuditLogs] = useState<any[]>([]);
             )}
           </CardContent>
         </Card>
-        <Card variant="elevated" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        <Card className="platform-panel" variant="elevated">
           <CardContent style={{ flex: 1 }}>
             <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: 12 }}>Recent Activity</h3>
             {auditLogs.length > 0 ? (

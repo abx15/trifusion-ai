@@ -2,11 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
+    rawBody: true,
     logger: ['error', 'warn', 'log'],
   });
+  app.useWebSocketAdapter(new WsAdapter(app));
 
   // Global prefix with health/ready excluded from versioning
   app.setGlobalPrefix('api/v1', {

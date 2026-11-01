@@ -71,10 +71,11 @@ TEMPLATES = []
 WSGI_APPLICATION = "ai_service.wsgi.application"
 ASGI_APPLICATION = "ai_service.asgi.application"
 
-if os.environ.get("DATABASE_URL"):
+database_url = os.environ.get("DATABASE_URL") or os.environ.get("DJANGO_DATABASE_URL")
+if database_url:
     import dj_database_url
     DATABASES = {
-        "default": dj_database_url.parse(os.environ.get("DATABASE_URL"), conn_max_age=600),
+        "default": dj_database_url.parse(database_url, conn_max_age=600),
     }
 else:
     DATABASES = {

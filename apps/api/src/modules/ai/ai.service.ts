@@ -218,12 +218,56 @@ export class AiService {
     retrieved_context: Array<{ id: string; type: string; title: string }>;
     request_id?: string;
   }) {
-    // NestJS proxies the SSE stream from Django. Never return Django URL or service token to browser.
-    const requestId = data.request_id || this.generateNonce();
+    if (this.circuitBreaker.isOpen()) {
+      throw new HttpException(
+        'AI service temporarily unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
 
-    return {
-      stream_url: `/api/v1/workspaces/${data.workspace_id}/ai/assistant/stream`,
+    const requestId = data.request_id || this.generateNonce();
+    const token = this.createServiceToken({
+      workspace_id: data.workspace_id,
+      user_id: data.user_id,
+      role: data.role,
+      allowed_scopes: ['workspace_assistant'],
       request_id: requestId,
-    };
+    });
+
+    try {
+      const response = await fetch(`${this.djangoUrl}/v1/ai/assistant/stream`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'X-Request-Id': requestId,
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({
+          workspace_id: data.workspace_id,
+          user_id: data.user_id,
+          role: data.role,
+          question: data.question,
+          retrieved_context: data.retrieved_context,
+          request_id: requestId,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        this.circuitBreaker.recordFailure();
+        const detail = await response.text().catch(() => '');
+        throw new HttpException(
+          detail || `AI service error: ${response.statusText}`,
+          HttpStatus.BAD_GATEWAY,
+        );
+      }
+
+      this.circuitBreaker.recordSuccess();
+      return { response, requestId };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.circuitBreaker.recordFailure();
+      throw new HttpException('Failed to stream from AI service', HttpStatus.BAD_GATEWAY);
+    }
   }
 }

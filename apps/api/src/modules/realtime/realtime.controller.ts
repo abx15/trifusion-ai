@@ -1,13 +1,19 @@
-import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CurrentWorkspace } from '../auth/decorators/authorization.decorators';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 
-@Controller('realtime')
-@UseGuards(JwtAuthGuard)
+@Controller('workspaces/:workspaceId/realtime')
+@UseGuards(JwtAuthGuard, WorkspaceGuard)
 export class RealtimeController {
   @Get('stream')
-  stream(@CurrentUser() user: { id: string }, @Query('workspaceId') workspaceId: string, @Res() res: Response) {
+  stream(
+    @CurrentUser() user: { id: string },
+    @CurrentWorkspace('workspaceId') workspaceId: string,
+    @Res() res: Response,
+  ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

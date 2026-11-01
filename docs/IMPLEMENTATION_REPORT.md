@@ -46,3 +46,20 @@ A comprehensive audit, upgrade, and implementation was performed on the TriFusio
 2. Django AI lint — 70 pre-existing ruff errors
 3. Production build (`next build`) — not yet run
 4. Cross-tenant negative tests — not run against Neon
+
+## 2026-11-01 Audit Addendum
+
+Completed:
+
+- Added the missing NestJS `dev` script so root Turbo development starts all four services.
+- Fixed Django database URL compatibility for `DJANGO_DATABASE_URL` and declared the `dj-database-url` dependency.
+- Verified all four local health/readiness endpoints.
+- Verified all eight seeded role logins and corrected company-workspace role selection.
+- Added detailed authentication, CRUD, API integration, Django/NestJS, startup, API reference, and production-readiness reports.
+
+Still partial or not tested:
+
+- Full CRUD permission matrix and cross-tenant negative requests.
+- Token expiry/refresh revocation and suspended-account request matrix.
+- End-to-end WebSocket and external AI provider workflows.
+- NestJS-to-Django SSE streaming proxy.

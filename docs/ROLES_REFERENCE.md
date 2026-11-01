@@ -232,3 +232,7 @@ Defined in `database/prisma/schema.prisma`:
 | Platform | `SUPERADMIN` | 4 | Platform config + staff role management |
 
 **Total roles: 8** (4 customer workspace + 4 platform staff). All data shown in the UI is fetched live from the Neon `neondb` database, filtered server-side by the authenticated user's role and workspace membership.
+
+## Verification Addendum — 2026-11-01
+
+The local seeded login smoke test resolved OWNER, TEAM_ADMIN, MEMBER, VIEWER, SUPERADMIN, PLATFORM_ADMIN, ANALYST, and SUPPORT_AGENT correctly. Customer role resolution is based on the validated selected workspace; the frontend role is not used as authorization proof. Full mutation coverage remains **NOT TESTED** and must be verified with request-level negative tests.

@@ -57,3 +57,14 @@ Browser → Next.js App Router → API Proxy (/api/backend/*)
 - Prisma ORM with 22 models
 - Workspace-scoped queries with composite indexes
 - Audit log with hash-chained integrity
+
+## Local Development Services
+
+The root `pnpm dev` command uses Turbo to start all workspace packages with a `dev` script:
+
+- Customer web: `3000`
+- NestJS API: `3001`
+- Platform admin: `3002`
+- Django AI service: `3003`
+
+The API package now exposes a `dev` script that delegates to its existing `start:dev` command. Django remains an internal AI boundary and receives signed service tokens from NestJS; browser business requests must not bypass NestJS policy enforcement.

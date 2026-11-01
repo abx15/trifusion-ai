@@ -28,6 +28,8 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { AiModule } from './modules/ai/ai.module';
 import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
+import { BillingModule } from './modules/billing/billing.module';
+import { EmailModule } from './modules/email/email.module';
 
 @Module({
   imports: [
@@ -62,6 +64,8 @@ import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard
     JobsModule,
     AiModule,
     GraphQLModule,
+    BillingModule,
+    EmailModule,
   ],
   controllers: [],
   providers: [

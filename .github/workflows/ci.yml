@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: '0 2 * * *'  # Nightly security scans
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint (Node & Python)
@@ -101,6 +105,9 @@ jobs:
       - name: Run test suite
         run: pnpm test
 
+      - name: Run Django test suite explicitly
+        run: python -m pytest services/ai-django/tests -q
+
   build:
     name: Build (All Workspaces)
     runs-on: ubuntu-latest
@@ -134,6 +141,9 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Verify Django configuration
+        run: python services/ai-django/manage.py check
 
   security:
     name: Security Scans

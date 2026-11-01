@@ -69,4 +69,34 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  @layer components {
+    .platform-dashboard {
+      --platform-accent: #003f5c;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      border-radius: 1.5rem;
+    }
+    .platform-glassmorphism { --platform-accent: #087f8c; background: radial-gradient(circle at 100% 0, rgba(89, 205, 214, .18), transparent 32rem); }
+    .platform-minimalist { --platform-accent: #58508d; }
+    .platform-dark { --platform-accent: #b778c0; color: #e2e8f0; background: #0b1220; }
+    .platform-helpdesk { --platform-accent: #ff6361; }
+    .platform-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+    .platform-hero h1 { margin: .35rem 0; font-size: clamp(1.75rem, 3vw, 2.5rem); font-weight: 800; letter-spacing: -.045em; }
+    .platform-hero p { margin: 0; color: #64748b; }
+    .platform-dark .platform-hero p { color: #94a3b8; }
+    .platform-eyebrow { color: var(--platform-accent); font-size: .7rem; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; }
+    .platform-role { border-radius: 999px; }
+    .platform-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+    .platform-kpis > * { border: 1px solid rgba(148, 163, 184, .2); border-radius: 1rem; box-shadow: 0 16px 35px rgba(15, 23, 42, .08); }
+    .platform-glassmorphism .platform-kpis > *, .platform-glassmorphism .platform-panel { backdrop-filter: blur(18px); background: rgba(255,255,255,.62); }
+    .platform-dark .platform-kpis > *, .platform-dark .platform-panel { color: #e2e8f0; border-color: #243248; background: #111b2e; box-shadow: none; }
+    .platform-content-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 1rem; }
+    .platform-panel { min-height: 19rem; border-radius: 1.15rem; }
+    .platform-layout-kanban .platform-content-grid { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) { .platform-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .platform-content-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 640px) { .platform-dashboard { padding: .5rem; } .platform-hero { align-items: flex-start; flex-direction: column; } }
+  }
 }

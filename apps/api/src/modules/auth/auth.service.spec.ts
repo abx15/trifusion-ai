@@ -96,6 +96,36 @@ describe('AuthService', () => {
     ).rejects.toThrow('Invalid or expired refresh token');
   });
 
+  it('should revoke a refresh token during rotation and reject its reuse', async () => {
+    const storedToken = {
+      id: 'refresh-1',
+      isRevoked: false,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: 'user-1', email: 'user@example.com', status: UserStatus.ACTIVE },
+    };
+
+    mockPrisma.refreshToken.findUnique
+      .mockResolvedValueOnce(storedToken)
+      .mockResolvedValueOnce({ ...storedToken, isRevoked: true });
+
+    const rotatedTokens = await service.refreshToken({ refreshToken: 'refresh-token' });
+
+    expect(rotatedTokens).toEqual({
+      accessToken: 'access-token',
+      refreshToken: expect.any(String),
+    });
+    expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith({
+      where: { id: 'refresh-1' },
+      data: { isRevoked: true },
+    });
+    expect(mockPrisma.refreshToken.create).toHaveBeenCalledTimes(1);
+
+    await expect(
+      service.refreshToken({ refreshToken: 'refresh-token' }),
+    ).rejects.toThrow('Invalid or expired refresh token');
+    expect(mockPrisma.refreshToken.update).toHaveBeenCalledTimes(1);
+  });
+
   it('should throw BadRequestException on invalid reset token', async () => {
     mockPrisma.passwordResetToken.findUnique.mockResolvedValueOnce(null);
     await expect(
