@@ -96,10 +96,18 @@ export default function PlatformLoginPage() {
         throw new Error('Platform staff role validation failed.');
       }
 
-      // Step 3: Redirect to destination or dashboard
+      // Step 3: Redirect to role-specific dashboard
+      const role = String(staffData.role);
+      const roleDashboardPaths: Record<string, string> = {
+        SUPERADMIN: '/platform-admin/superadmin',
+        PLATFORM_ADMIN: '/platform-admin/admin',
+        ANALYST: '/platform-admin/analyst',
+        SUPPORT_AGENT: '/platform-admin/support',
+      };
+
       const nextPath = new URLSearchParams(window.location.search).get('next');
-      const protectedPaths = ['/', '/audit', '/analytics', '/users', '/settings', '/health', '/metrics', '/staff', '/workspaces', '/grants', '/flags'];
-      const target = nextPath && protectedPaths.includes(nextPath) ? nextPath : '/';
+      const protectedPaths = ['/platform-admin/superadmin', '/platform-admin/admin', '/platform-admin/analyst', '/platform-admin/support', '/audit', '/analytics', '/users', '/settings', '/health', '/metrics', '/staff', '/workspaces', '/grants', '/flags'];
+      const target = nextPath && protectedPaths.includes(nextPath) ? nextPath : roleDashboardPaths[role];
 
       router.replace(target);
     } catch (submitError) {
