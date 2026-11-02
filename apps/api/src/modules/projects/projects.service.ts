@@ -203,7 +203,11 @@ export class ProjectsService {
     filterValues: WorkspaceOverviewFilterValues = {},
   ) {
     const context = await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const filters = normalizeWorkspaceOverviewFilters(filterValues);
+    const filters = normalizeWorkspaceOverviewFilters(
+      context.role === WorkspaceRole.MEMBER
+        ? { ...filterValues, assigneeId: actorId }
+        : filterValues,
+    );
     const now = new Date();
     const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const projectWhere: Prisma.ProjectWhereInput = {

@@ -272,6 +272,93 @@ export const apiClient = {
       }),
   },
 
+  support: {
+    tickets: (workspaceId: string, query: Query = {}) =>
+      request<{
+        total: number;
+        tickets: Array<{
+          id: string;
+          title: string;
+          description: string | null;
+          status: string;
+          priority: string;
+          requesterId: string;
+          assigneeId: string | null;
+          slaBreached: boolean;
+          resolvedAt: string | null;
+          closedAt: string | null;
+          createdAt: string;
+          updatedAt: string;
+          requester: { id: string; email: string };
+          assignee: { id: string; email: string } | null;
+        }>;
+        limit: number;
+        hasMore: number;
+        nextCursor: string | null;
+      }>(`${workspacePath(workspaceId, 'support/tickets')}${queryString(query)}`),
+    create: (workspaceId: string, input: { title: string; description?: string | null; priority?: string }) =>
+      request<any>(workspacePath(workspaceId, 'support/tickets'), {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    get: (workspaceId: string, ticketId: string) =>
+      request<any>(workspacePath(workspaceId, `support/tickets/${encodeURIComponent(ticketId)}`)),
+    update: (workspaceId: string, ticketId: string, input: Partial<{ title: string; description: string | null; status: string; priority: string; assigneeId: string | null }>) =>
+      request<any>(workspacePath(workspaceId, `support/tickets/${encodeURIComponent(ticketId)}`), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    updateStatus: (workspaceId: string, ticketId: string, input: { status: string }) =>
+      request<any>(workspacePath(workspaceId, `support/tickets/${encodeURIComponent(ticketId)}/status`), {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
+    assign: (workspaceId: string, ticketId: string, assigneeId: string) =>
+      request<any>(workspacePath(workspaceId, `support/tickets/${encodeURIComponent(ticketId)}/assign`), {
+        method: 'PATCH',
+        body: JSON.stringify({ assigneeId }),
+      }),
+    archive: (workspaceId: string, ticketId: string) =>
+      request<any>(workspacePath(workspaceId, `support/tickets/${encodeURIComponent(ticketId)}/archive`), {
+        method: 'DELETE',
+      }),
+    sessions: (workspaceId: string, query: Query = {}) =>
+      request<{
+        total: number;
+        sessions: Array<{
+          id: string;
+          workspaceId: string;
+          workspaceName: string;
+          agentId: string;
+          agentEmail: string;
+          ticketId: string | null;
+          ticketTitle: string | null;
+          reason: string;
+          scope: string;
+          status: string;
+          startedAt: string;
+          expiresAt: string;
+          endedAt: string | null;
+          consentGiven: boolean;
+          consentAt: string | null;
+          createdAt: string;
+          updatedAt: string;
+        }>;
+        limit: number;
+        hasMore: boolean;
+        nextCursor: string | null;
+      }>(`${workspacePath(workspaceId, 'support/sessions')}${queryString(query)}`),
+    createSession: (workspaceId: string, input: { ticketId?: string | null; reason: string; scope: string; expiresAt?: string | null }) =>
+      request<any>(workspacePath(workspaceId, 'support/sessions'), {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    endSession: (sessionId: string) =>
+      request<any>(`support/sessions/${encodeURIComponent(sessionId)}/end`, {
+        method: 'PATCH',
+      }),
+  },
+
   graphql: async <T>(query: string, variables: Record<string, unknown>) => {
     const result = await request<{
       data?: T;

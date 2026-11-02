@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/auth-context';
+import { getCustomerDashboardPath, type CustomerRole } from '@trifusion/contracts';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,14 +22,16 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      const loggedInUser = await login({ email, password });
       const nextPath = new URLSearchParams(window.location.search).get('next');
       const safeNextPath =
         nextPath !== null &&
         nextPath.startsWith('/dashboard') &&
         !nextPath.startsWith('//') &&
         !nextPath.includes('\\');
-      router.replace(safeNextPath ? nextPath : '/dashboard');
+      const selectedWorkspace = loggedInUser.workspaces.find((item) => item.type === 'COMPANY') ?? loggedInUser.workspaces[0];
+      const role = selectedWorkspace?.role as CustomerRole | undefined;
+      router.replace(safeNextPath ? nextPath : role ? getCustomerDashboardPath(role) : '/dashboard');
     } catch (err: unknown) {
       const message =
         err && typeof err === 'object' && 'message' in err

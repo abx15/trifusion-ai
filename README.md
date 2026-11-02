@@ -232,7 +232,7 @@ pnpm db:seed
 | analyst@trifusion.dev | ANALYST | Platform Staff |
 | support@trifusion.dev | SUPPORT_AGENT | Platform Staff |
 
-See `TEST_CREDENTIALS.md` for full details.
+See `LOGIN_CREDENTIALS.md` for full details and API examples.
 
 ### 5. Start the Applications
 

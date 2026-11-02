@@ -1,7 +1,11 @@
 // Shared TypeScript types for TriFusion AI
+import type { PlatformRole } from '../roles';
 
 export type WorkspaceType = 'PERSONAL' | 'COMPANY';
 export type WorkspaceRole = 'OWNER' | 'TEAM_ADMIN' | 'MEMBER' | 'VIEWER';
+export type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'WAITING_ON_CUSTOMER' | 'RESOLVED' | 'CLOSED';
+export type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type SessionStatus = 'ACTIVE' | 'ENDED';
 
 export interface User {
   id: string;
@@ -139,6 +143,38 @@ export interface ActivityEvent {
   createdAt: string | Date;
 }
 
+export interface SupportTicket {
+  id: string;
+  workspaceId: string;
+  title: string;
+  description?: string | null;
+  status: TicketStatus;
+  priority: TicketPriority;
+  requesterId: string;
+  assigneeId?: string | null;
+  slaBreached: boolean;
+  resolvedAt?: string | Date | null;
+  closedAt?: string | Date | null;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface SupportSession {
+  id: string;
+  workspaceId: string;
+  agentId: string;
+  ticketId?: string | null;
+  reason: string;
+  scope: string;
+  status: SessionStatus;
+  startedAt: string | Date;
+  expiresAt: string | Date;
+  endedAt?: string | Date | null;
+  consentGiven: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   nextCursor: string | null;
@@ -153,4 +189,63 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   statusCode?: number;
   timestamp?: string;
+}
+
+export interface WorkspaceStats {
+  projectCount: number;
+  taskCount: number;
+  memberCount: number;
+  clientCount: number;
+  overdueTasks: number;
+  upcomingDeadlines: number;
+}
+
+export interface AnalyticsMetric {
+  name: string;
+  value: number;
+  timestamp: string;
+}
+
+export interface PlatformStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalTenants: number;
+  activeTenants: number;
+  suspendedTenants: number;
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+  workspaceId: string | null;
+}
+
+export interface FileAsset {
+  id: string;
+  objectKey: string;
+  originalName: string;
+  contentType: string;
+  size: number;
+  scanStatus: string;
+  status: string;
+  createdAt: string | Date;
+}
+
+export interface PlatformStaffRole {
+  id: string;
+  userId: string;
+  role: PlatformRole;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+export interface FeatureFlag {
+  id: string;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  environments: string[];
 }

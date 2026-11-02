@@ -27,9 +27,10 @@ import { FilesModule } from './modules/files/files.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { JobsModule } from './modules/jobs/jobs.module';
 import { AiModule } from './modules/ai/ai.module';
-import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
 import { BillingModule } from './modules/billing/billing.module';
 import { EmailModule } from './modules/email/email.module';
+import { SupportModule } from './modules/support/support.module';
+import { GraphQLThrottlerGuard } from './modules/graphql/graphql-throttler.guard';
 import path from 'node:path';
 
 @Module({
@@ -72,6 +73,7 @@ import path from 'node:path';
     GraphQLModule,
     BillingModule,
     EmailModule,
+    SupportModule,
   ],
   controllers: [],
   providers: [

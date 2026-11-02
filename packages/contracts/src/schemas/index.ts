@@ -40,6 +40,7 @@ export type RegisterSchema = z.infer<typeof registerSchema>;
 export type LoginSchema = z.infer<typeof loginSchema>;
 export type RefreshTokenSchema = z.infer<typeof refreshTokenSchema>;
 export type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>;
+
 export const clientSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(200),
   email: z.string().trim().email('Invalid email address').toLowerCase().max(200).optional().nullable(),
@@ -78,14 +79,62 @@ export const workspaceSettingsSchema = z.object({
   companyEmail: z.string().trim().email('Invalid email address').max(200).optional().nullable(),
 });
 
+// Support ticket schemas
+export const supportTicketSchema = z.object({
+  title: z.string().min(1, 'Title is required').max(200),
+  description: z.string().optional().nullable(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
+});
+
+export const supportTicketStatusSchema = z.object({
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'WAITING_ON_CUSTOMER', 'RESOLVED', 'CLOSED']),
+});
+
+export const supportTicketAssignSchema = z.object({
+  assigneeId: z.string().uuid(),
+});
+
+export const supportSessionSchema = z.object({
+  workspaceId: z.string().uuid(),
+  ticketId: z.string().uuid().optional().nullable(),
+  reason: z.string().min(1, 'Reason is required'),
+  scope: z.string().min(1, 'Scope is required'),
+  expiresAt: z.string().datetime().optional().nullable(),
+});
+
 export type ClientInput = z.infer<typeof clientSchema>;
 export type ProjectInput = z.infer<typeof projectSchema>;
 export type TaskInput = z.infer<typeof taskSchema>;
 export type TaskStatusInput = z.infer<typeof taskStatusSchema>;
 export type WorkspaceSettingsInput = z.infer<typeof workspaceSettingsSchema>;
+export type SupportTicketInput = z.infer<typeof supportTicketSchema>;
+export type SupportTicketStatusInput = z.infer<typeof supportTicketStatusSchema>;
+export type SupportTicketAssignInput = z.infer<typeof supportTicketAssignSchema>;
+export type SupportSessionInput = z.infer<typeof supportSessionSchema>;
 
 // Cursor pagination schema
 export const cursorPaginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().optional(),
+});
+
+// Analytics query schema
+export const analyticsQuerySchema = z.object({
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  groupBy: z.enum(['day', 'week', 'month']).default('day'),
+  workspaceId: z.string().uuid().optional(),
+});
+
+// Platform staff schemas
+export const platformStaffRoleSchema = z.object({
+  userId: z.string().uuid(),
+  role: z.enum(['SUPERADMIN', 'PLATFORM_ADMIN', 'ANALYST', 'SUPPORT_AGENT']),
+});
+
+export const featureFlagSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  enabled: z.boolean().default(false),
+  environments: z.array(z.enum(['development', 'staging', 'production'])).default(['development']),
 });

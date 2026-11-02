@@ -87,9 +87,12 @@ export class AnalyticsService {
 
   async getWorkspaceOverview(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
     const context = await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
-    const projectWhere = this.buildProjectWhere(workspaceId, filters);
-    const taskWhere = this.buildTaskWhere(workspaceId, range, filters);
+    const scopedFilters = context.role === 'MEMBER'
+      ? { ...filters, assigneeId: actorId }
+      : filters;
+    const range = this.normalizeDateRange(scopedFilters);
+    const projectWhere = this.buildProjectWhere(workspaceId, scopedFilters);
+    const taskWhere = this.buildTaskWhere(workspaceId, range, scopedFilters);
 
     const [projectGroups, taskGroups, activeProjects, overdueTasks, upcomingDeadlines, teamWorkload] =
       await Promise.all([
@@ -116,7 +119,7 @@ export class AnalyticsService {
             status: { not: TaskStatus.DONE },
           },
         }),
-        this.getTeamWorkload(workspaceId, actorId, filters),
+        this.getTeamWorkload(workspaceId, actorId, scopedFilters),
       ]);
 
     const totalTasks = taskGroups.reduce((sum, item) => sum + item._count._all, 0);
@@ -129,12 +132,12 @@ export class AnalyticsService {
       role: context.role,
       reportingPeriod: { start: range.start.toISOString(), end: range.end.toISOString() },
       filters: {
-        projectId: filters.projectId ?? null,
-        projectStatus: filters.projectStatus ?? null,
-        assigneeId: filters.assigneeId ?? null,
-        taskStatus: filters.taskStatus ?? null,
-        startDate: filters.startDate ?? null,
-        endDate: filters.endDate ?? null,
+        projectId: scopedFilters.projectId ?? null,
+        projectStatus: scopedFilters.projectStatus ?? null,
+        assigneeId: scopedFilters.assigneeId ?? null,
+        taskStatus: scopedFilters.taskStatus ?? null,
+        startDate: scopedFilters.startDate ?? null,
+        endDate: scopedFilters.endDate ?? null,
       },
       generatedAt: new Date().toISOString(),
       dataFreshness: 'live',

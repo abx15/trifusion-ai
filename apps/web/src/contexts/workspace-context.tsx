@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { WorkspaceRole, WorkspaceSummary } from '@trifusion/contracts';
 import { apiClient, ApiClientError } from '../lib/api-client';
 import { useAuth } from './auth-context';
@@ -32,7 +32,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     // Company workspaces carry the user's collaboration role. Prefer one when
     // available so a personal OWNER space cannot mask TEAM_ADMIN/MEMBER/VIEWER.
+    const storedWorkspaceId = window.localStorage.getItem('trifusion.activeWorkspaceId');
+    const storedWorkspace = storedWorkspaceId
+      ? user.workspaces.find((item) => item.id === storedWorkspaceId)
+      : undefined;
     const firstWorkspace =
+      storedWorkspace ??
       user.workspaces.find((item) => item.type === 'COMPANY') ??
       user.workspaces.find((item) => item.type === 'PERSONAL') ??
       user.workspaces[0];
@@ -47,6 +52,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           name: validated.workspaceName,
           role: validated.role,
         });
+        window.localStorage.setItem('trifusion.activeWorkspaceId', validated.workspaceId);
         setSelectionError(null);
       })
       .catch((error: unknown) => {
@@ -67,7 +73,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user]);
 
-  const selectWorkspace = async (workspaceId: string) => {
+  const selectWorkspace = useCallback(async (workspaceId: string) => {
     const selected = user?.workspaces.find((item) => item.id === workspaceId);
     if (!selected) {
       setSelectionError('Choose a workspace from your active memberships.');
@@ -78,6 +84,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     try {
       const validated = await apiClient.workspaces.validate(selected.id);
       setWorkspace({ ...selected, name: validated.workspaceName, role: validated.role });
+      window.localStorage.setItem('trifusion.activeWorkspaceId', validated.workspaceId);
     } catch (error) {
       setSelectionError(
         error instanceof ApiClientError && error.statusCode === 403
@@ -88,7 +95,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsValidating(false);
     }
-  };
+  }, [user]);
 
   const value = useMemo<WorkspaceContextValue>(() => {
     const role = workspace?.role ?? null;
@@ -102,7 +109,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       selectionError,
       isValidating,
     };
-  }, [workspace, selectionError, isValidating, user]);
+  }, [workspace, selectionError, isValidating, selectWorkspace]);
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
 }

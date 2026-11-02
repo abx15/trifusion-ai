@@ -131,7 +131,10 @@ export class TasksService {
     actorId: string,
     dto: ListTasksQueryDto,
   ) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
+    const workspaceContext = await this.policyService.getWorkspaceContext(actorId, workspaceId);
+    const assigneeId = workspaceContext.role === WorkspaceRole.MEMBER
+      ? actorId
+      : dto.assigneeId;
 
     const limit = normalizeLimit({ limit: dto.limit, maxLimit: 50, defaultLimit: 20 });
     const cursor = decodeCursor(dto.cursor);
@@ -142,7 +145,7 @@ export class TasksService {
       ...(dto.status ? { status: dto.status } : {}),
       ...(dto.priority ? { priority: dto.priority } : {}),
       ...(dto.projectId ? { projectId: dto.projectId } : {}),
-      ...(dto.assigneeId ? { assigneeId: dto.assigneeId } : {}),
+      ...(assigneeId ? { assigneeId } : {}),
       ...(dto.clientId || dto.projectStatus
         ? {
             project: {

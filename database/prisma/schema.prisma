@@ -204,6 +204,10 @@ model User {
 
   ownedFiles FileAsset[] @relation("FileOwner")
 
+  supportTicketsRequested SupportTicket[] @relation("SupportTicketRequester")
+  supportTicketsAssigned SupportTicket[] @relation("SupportTicketAssignee")
+  supportSessions SupportSession[] @relation("SupportSessionAgent")
+
   @@index([email])
   @@index([status])
 }
@@ -325,6 +329,8 @@ model Workspace {
   notificationPreferences NotificationPreference[]
   fileAssets        FileAsset[]
   jobRecords        JobRecord[]
+  supportTickets    SupportTicket[] @relation("SupportTicketWorkspace")
+  supportSessions   SupportSession[] @relation("SupportSessionWorkspace")
 
   @@index([ownerId])
   @@index([type])
@@ -859,4 +865,69 @@ model PrivilegedAccessGrant {
   updatedAt DateTime @updatedAt
   @@index([targetWorkspaceId])
   @@index([requesterId])
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model SupportTicket {
+  id String @id @default(uuid())
+  workspaceId String
+  workspace Workspace @relation("SupportTicketWorkspace", fields: [workspaceId], references: [id], onDelete: Cascade)
+  title String
+  description String?
+  status TicketStatus @default(OPEN)
+  priority TicketPriority @default(MEDIUM)
+  requesterId String
+  requester User @relation("SupportTicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  assignee User? @relation("SupportTicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  slaBreached Boolean @default(false)
+  slaDueAt DateTime?
+  resolvedAt DateTime?
+  closedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  supportSessions SupportSession[] @relation("SupportSessionTicket")
+  @@index([workspaceId])
+  @@index([status])
+  @@index([priority])
+  @@index([assigneeId])
+  @@index([createdAt])
+}
+
+model SupportSession {
+  id String @id @default(uuid())
+  workspaceId String
+  workspace Workspace @relation("SupportSessionWorkspace", fields: [workspaceId], references: [id], onDelete: Cascade)
+  agentId String
+  agent User @relation("SupportSessionAgent", fields: [agentId], references: [id], onDelete: Cascade)
+  ticketId String?
+  ticket SupportTicket? @relation("SupportSessionTicket", fields: [ticketId], references: [id], onDelete: SetNull)
+  reason String
+  scope String
+  status String @default("ACTIVE")
+  startedAt DateTime @default(now())
+  expiresAt DateTime
+  endedAt DateTime?
+  consentGiven Boolean @default(false)
+  consentAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([workspaceId])
+  @@index([agentId])
+  @@index([status])
+  @@index([ticketId])
 }
