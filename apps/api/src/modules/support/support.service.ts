@@ -2,11 +2,7 @@ import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogService } from '../audit/audit.service';
 import { PolicyService } from '../../common/policy/policy.service';
-import {
-  TicketStatus,
-  TicketPriority,
-  WorkspaceMemberStatus,
-} from '@prisma/client';
+import { TicketStatus, TicketPriority, WorkspaceMemberStatus } from '@prisma/client';
 import { RequestMeta } from '../auth/auth.service';
 import {
   CreateTicketDto,
@@ -20,13 +16,19 @@ export class SupportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
-    private readonly policyService: PolicyService,
+    private readonly policyService: PolicyService
   ) {}
 
   async listTickets(
     workspaceId: string,
     actorId: string,
-    filters: { status?: string; priority?: string; assigneeId?: string; limit?: number; cursor?: string },
+    filters: {
+      status?: string;
+      priority?: string;
+      assigneeId?: string;
+      limit?: number;
+      cursor?: string;
+    }
   ) {
     await this.policyService.getWorkspaceContext(actorId, workspaceId);
 
@@ -60,14 +62,29 @@ export class SupportService {
     };
   }
 
-  async listAllTickets(filters: { status?: string; priority?: string; assigneeId?: string; limit?: number; cursor?: string }) {
+  async listAllTickets(filters: {
+    status?: string;
+    priority?: string;
+    assigneeId?: string;
+    limit?: number;
+    cursor?: string;
+  }) {
     const where: any = {};
     if (filters.status) where.status = filters.status as TicketStatus;
     if (filters.priority) where.priority = filters.priority as TicketPriority;
     if (filters.assigneeId) where.assigneeId = filters.assigneeId;
 
     const take = Math.min(filters.limit || 20, 100);
-    const [total, tickets] = await Promise.all([
+    const [
+      total,
+      tickets,
+      openTickets,
+      assignedTickets,
+      pendingCustomerResponses,
+      criticalIncidents,
+      slaBreaches,
+      resolution,
+    ] = await Promise.all([
       this.prisma.supportTicket.count({ where }),
       this.prisma.supportTicket.findMany({
         where,
@@ -81,6 +98,18 @@ export class SupportService {
         },
         orderBy: { createdAt: 'desc' },
       }),
+      this.prisma.supportTicket.count({
+        where: { ...where, status: { notIn: ['RESOLVED', 'CLOSED'] } },
+      }),
+      this.prisma.supportTicket.count({ where: { ...where, assigneeId: { not: null } } }),
+      this.prisma.supportTicket.count({ where: { ...where, status: 'WAITING_ON_CUSTOMER' } }),
+      this.prisma.supportTicket.count({ where: { ...where, priority: 'CRITICAL' } }),
+      this.prisma.supportTicket.count({ where: { ...where, slaBreached: true } }),
+      this.prisma.$queryRaw<Array<{ averageHours: number | null }>>`
+        SELECT AVG(EXTRACT(EPOCH FROM ("resolvedAt" - "createdAt")) / 3600) AS "averageHours"
+        FROM "SupportTicket"
+        WHERE "resolvedAt" IS NOT NULL
+      `,
     ]);
 
     return {
@@ -89,6 +118,14 @@ export class SupportService {
       limit: take,
       hasMore: tickets.length === take && total > 0,
       nextCursor: tickets.length > 0 ? tickets[tickets.length - 1].id : null,
+      summary: {
+        openTickets,
+        assignedTickets,
+        pendingCustomerResponses,
+        criticalIncidents,
+        slaBreaches,
+        averageResolutionHours: resolution[0]?.averageHours ?? null,
+      },
     };
   }
 
@@ -133,11 +170,17 @@ export class SupportService {
       },
     });
     if (!ticket) throw new NotFoundException('Ticket not found');
-    if (ticket.workspaceId !== workspaceId) throw new ForbiddenException('Ticket does not belong to this workspace');
+    if (ticket.workspaceId !== workspaceId)
+      throw new ForbiddenException('Ticket does not belong to this workspace');
     return ticket;
   }
 
-  async createTicket(workspaceId: string, actorId: string, dto: CreateTicketDto, meta: RequestMeta) {
+  async createTicket(
+    workspaceId: string,
+    actorId: string,
+    dto: CreateTicketDto,
+    meta: RequestMeta
+  ) {
     await this.policyService.requireWorkspaceRole(actorId, workspaceId, 'MEMBER');
     const ticket = await this.prisma.supportTicket.create({
       data: {
@@ -175,7 +218,7 @@ export class SupportService {
     ticketId: string,
     actorId: string,
     dto: UpdateTicketDto,
-    meta: RequestMeta,
+    meta: RequestMeta
   ) {
     const ticket = await this.getTicket(workspaceId, ticketId, actorId);
     const context = await this.policyService.getWorkspaceContext(actorId, workspaceId);
@@ -225,7 +268,7 @@ export class SupportService {
     ticketId: string,
     actorId: string,
     dto: UpdateTicketStatusDto,
-    meta: RequestMeta,
+    meta: RequestMeta
   ) {
     const ticket = await this.getTicket(workspaceId, ticketId, actorId);
     const context = await this.policyService.getWorkspaceContext(actorId, workspaceId);
@@ -302,7 +345,7 @@ export class SupportService {
     ticketId: string,
     actorId: string,
     assigneeId: string,
-    meta: RequestMeta,
+    meta: RequestMeta
   ) {
     await this.getTicket(workspaceId, ticketId, actorId);
     await this.policyService.requireWorkspaceRole(actorId, workspaceId, 'TEAM_ADMIN');
@@ -343,7 +386,9 @@ export class SupportService {
   async createSession(actorId: string, dto: CreateSessionDto, meta: RequestMeta) {
     await this.policyService.requireWorkspaceRole(actorId, dto.workspaceId, 'MEMBER');
 
-    const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = dto.expiresAt
+      ? new Date(dto.expiresAt)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     const session = await this.prisma.supportSession.create({
       data: {
@@ -384,7 +429,7 @@ export class SupportService {
   async listSessions(
     workspaceId: string,
     actorId: string,
-    filters: { status?: string; limit?: number; cursor?: string },
+    filters: { status?: string; limit?: number; cursor?: string }
   ) {
     await this.policyService.getWorkspaceContext(actorId, workspaceId);
 

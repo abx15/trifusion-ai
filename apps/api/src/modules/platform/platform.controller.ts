@@ -10,11 +10,28 @@ import {
   Req,
   HttpCode,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { Request } from 'express';
 import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
-import { RequirePlatformRole, CurrentPlatformStaff, CurrentUser } from '../auth/decorators/authorization.decorators';
-import { PlatformStaffRoleType, AuditAction, UserStatus, WorkspaceStatus, Prisma } from '@prisma/client';
+import {
+  RequirePlatformRole,
+  CurrentPlatformStaff,
+  CurrentUser,
+} from '../auth/decorators/authorization.decorators';
+import {
+  PlatformStaffRoleType,
+  AuditAction,
+  UserStatus,
+  WorkspaceStatus,
+  Prisma,
+} from '@prisma/client';
 import { PlatformStaffContext } from '../../common/policy/policy.service';
 import { AuditLogService } from '../audit/audit.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -42,7 +59,7 @@ export class PlatformController {
     private readonly featureFlagService: FeatureFlagService,
     private readonly entitlementService: EntitlementService,
     private readonly grantService: PrivilegedAccessGrantService,
-    private readonly healthService: PlatformHealthService,
+    private readonly healthService: PlatformHealthService
   ) {}
 
   // ============================================
@@ -164,8 +181,10 @@ export class PlatformController {
     @Param('targetUserId') targetUserId: string,
     @Body() dto: UpdateUserStatusDto,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
+    await this.policyService.validatePlatformUserStatusChange(actorId, targetUserId, dto.status);
+
     const updated = await this.prisma.user.update({
       where: { id: targetUserId },
       data: { status: dto.status as UserStatus },
@@ -254,7 +273,7 @@ export class PlatformController {
     @Param('workspaceId') workspaceId: string,
     @Body() dto: UpdateWorkspaceStatusDto,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     const updated = await this.prisma.workspace.update({
       where: { id: workspaceId },
@@ -322,7 +341,7 @@ export class PlatformController {
   async assignStaffRole(
     @Body() dto: AssignStaffRoleDto,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     await this.policyService.validatePlatformRoleChange(actorId, dto.userId, dto.role, 'grant');
 
@@ -366,7 +385,7 @@ export class PlatformController {
     @Param('roleId') roleId: string,
     @Body('reason') reason: string,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     const existing = await this.prisma.platformStaffRole.findUnique({
       where: { id: roleId },
@@ -376,7 +395,12 @@ export class PlatformController {
       throw new Error('Staff role not found');
     }
 
-    await this.policyService.validatePlatformRoleChange(actorId, existing.userId, existing.role, 'revoke');
+    await this.policyService.validatePlatformRoleChange(
+      actorId,
+      existing.userId,
+      existing.role,
+      'revoke'
+    );
 
     const updated = await this.prisma.platformStaffRole.update({
       where: { id: roleId },
@@ -436,7 +460,7 @@ export class PlatformController {
   async upsertFeatureFlag(
     @Body() dto: CreateFlagDto,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     const flag = await this.featureFlagService.upsertFlag(
       dto.key,
@@ -448,7 +472,7 @@ export class PlatformController {
         status: dto.status,
       },
       actorId,
-      dto.reason,
+      dto.reason
     );
 
     const requestId = req.correlationId || (req.headers['x-request-id'] as string);
@@ -540,9 +564,11 @@ export class PlatformController {
   async requestGrant(
     @Body() dto: CreateGrantDto,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
-    const expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = dto.expiresAt
+      ? new Date(dto.expiresAt)
+      : new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const grant = await this.grantService.requestGrant({
       requesterId: actorId,
@@ -584,7 +610,7 @@ export class PlatformController {
     @Param('grantId') grantId: string,
     @Body() dto: ApproveGrantDto,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     const grant = await this.grantService.approveGrant({ grantId, approverId: actorId });
 
@@ -618,7 +644,7 @@ export class PlatformController {
   async revokeGrant(
     @Param('grantId') grantId: string,
     @CurrentUser('id') actorId: string,
-    @Req() req: Request,
+    @Req() req: Request
   ) {
     const grant = await this.grantService.revokeGrant(grantId, actorId);
 

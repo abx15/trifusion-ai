@@ -8,10 +8,7 @@ import {
   WorkspaceStatus,
   WorkspaceMemberStatus,
 } from '@prisma/client';
-import {
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 
 describe('PolicyService', () => {
   let service: PolicyService;
@@ -30,6 +27,7 @@ describe('PolicyService', () => {
     },
     platformStaffRole: {
       findFirst: jest.fn(),
+      count: jest.fn(),
     },
   };
 
@@ -37,10 +35,7 @@ describe('PolicyService', () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        PolicyService,
-        { provide: PrismaService, useValue: mockPrisma },
-      ],
+      providers: [PolicyService, { provide: PrismaService, useValue: mockPrisma }],
     }).compile();
 
     service = module.get<PolicyService>(PolicyService);
@@ -61,9 +56,7 @@ describe('PolicyService', () => {
 
     it('should reject non-existent user with UnauthorizedException', async () => {
       mockPrisma.user.findUnique.mockResolvedValueOnce(null);
-      await expect(service.resolveUser('unknown')).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.resolveUser('unknown')).rejects.toThrow(UnauthorizedException);
     });
 
     it('should reject SUSPENDED user on every request', async () => {
@@ -74,7 +67,7 @@ describe('PolicyService', () => {
       });
 
       await expect(service.resolveUser('u-suspended')).rejects.toThrow(
-        'Account is suspended. Access denied.',
+        'Account is suspended. Access denied.'
       );
     });
 
@@ -86,7 +79,7 @@ describe('PolicyService', () => {
       });
 
       await expect(service.resolveUser('u-deleted')).rejects.toThrow(
-        'Account is deleted. Access denied.',
+        'Account is deleted. Access denied.'
       );
     });
   });
@@ -115,7 +108,7 @@ describe('PolicyService', () => {
       mockPrisma.workspaceMember.findUnique.mockResolvedValueOnce(null);
 
       await expect(service.getWorkspaceContext('attacker', 'victim-ws')).rejects.toThrow(
-        'You do not have active access to this workspace',
+        'You do not have active access to this workspace'
       );
     });
 
@@ -133,9 +126,7 @@ describe('PolicyService', () => {
         },
       });
 
-      await expect(service.getWorkspaceContext('u1', 'ws-1')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(service.getWorkspaceContext('u1', 'ws-1')).rejects.toThrow(ForbiddenException);
     });
 
     it('should reject access when workspace is ARCHIVED or SUSPENDED', async () => {
@@ -152,9 +143,9 @@ describe('PolicyService', () => {
         },
       });
 
-      await expect(
-        service.getWorkspaceContext('u1', 'ws-archived'),
-      ).rejects.toThrow('Workspace is currently suspended or archived');
+      await expect(service.getWorkspaceContext('u1', 'ws-archived')).rejects.toThrow(
+        'Workspace is currently suspended or archived'
+      );
     });
   });
 
@@ -169,11 +160,7 @@ describe('PolicyService', () => {
         workspace: { id: 'ws-1', name: 'Acme', status: WorkspaceStatus.ACTIVE },
       });
 
-      const ctx = await service.requireWorkspaceRole(
-        'u1',
-        'ws-1',
-        WorkspaceRole.TEAM_ADMIN,
-      );
+      const ctx = await service.requireWorkspaceRole('u1', 'ws-1', WorkspaceRole.TEAM_ADMIN);
       expect(ctx.role).toBe(WorkspaceRole.OWNER);
     });
 
@@ -188,7 +175,7 @@ describe('PolicyService', () => {
       });
 
       await expect(
-        service.requireWorkspaceRole('u1', 'ws-1', WorkspaceRole.MEMBER),
+        service.requireWorkspaceRole('u1', 'ws-1', WorkspaceRole.MEMBER)
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -198,7 +185,7 @@ describe('PolicyService', () => {
       mockPrisma.platformStaffRole.findFirst.mockResolvedValueOnce(null);
 
       await expect(
-        service.requirePlatformRole('customer-user', PlatformStaffRoleType.ANALYST),
+        service.requirePlatformRole('customer-user', PlatformStaffRoleType.ANALYST)
       ).rejects.toThrow('Platform staff access required');
     });
 
@@ -212,7 +199,7 @@ describe('PolicyService', () => {
 
       const staff = await service.requirePlatformRole(
         'staff-u',
-        PlatformStaffRoleType.PLATFORM_ADMIN,
+        PlatformStaffRoleType.PLATFORM_ADMIN
       );
       expect(staff.role).toBe(PlatformStaffRoleType.SUPERADMIN);
     });
@@ -226,10 +213,7 @@ describe('PolicyService', () => {
       });
 
       await expect(
-        service.requirePlatformRole(
-          'staff-u',
-          PlatformStaffRoleType.PLATFORM_ADMIN,
-        ),
+        service.requirePlatformRole('staff-u', PlatformStaffRoleType.PLATFORM_ADMIN)
       ).rejects.toThrow('Insufficient platform privileges');
     });
   });
@@ -242,9 +226,52 @@ describe('PolicyService', () => {
           WorkspaceRole.MEMBER,
           WorkspaceRole.OWNER,
           true,
-          1,
+          1
         );
       }).toThrow('You cannot modify your own workspace role');
+    });
+
+    describe('Platform account status invariants', () => {
+      it('should prevent a platform admin from restricting a SUPERADMIN', async () => {
+        mockPrisma.platformStaffRole.findFirst
+          .mockResolvedValueOnce({
+            id: 'staff-admin',
+            userId: 'admin',
+            role: PlatformStaffRoleType.PLATFORM_ADMIN,
+            status: 'ACTIVE',
+          })
+          .mockResolvedValueOnce({
+            id: 'staff-superadmin',
+            userId: 'target',
+            role: PlatformStaffRoleType.SUPERADMIN,
+            status: 'ACTIVE',
+          });
+
+        await expect(
+          service.validatePlatformUserStatusChange('admin', 'target', UserStatus.SUSPENDED)
+        ).rejects.toThrow('Only SUPERADMIN can restrict another SUPERADMIN');
+      });
+
+      it('should protect the last active SUPERADMIN account', async () => {
+        mockPrisma.platformStaffRole.findFirst
+          .mockResolvedValueOnce({
+            id: 'staff-superadmin',
+            userId: 'actor',
+            role: PlatformStaffRoleType.SUPERADMIN,
+            status: 'ACTIVE',
+          })
+          .mockResolvedValueOnce({
+            id: 'staff-target',
+            userId: 'target',
+            role: PlatformStaffRoleType.SUPERADMIN,
+            status: 'ACTIVE',
+          });
+        mockPrisma.platformStaffRole.count.mockResolvedValueOnce(1);
+
+        await expect(
+          service.validatePlatformUserStatusChange('actor', 'target', UserStatus.SUSPENDED)
+        ).rejects.toThrow('Cannot restrict the last active SUPERADMIN');
+      });
     });
 
     it('should block TEAM_ADMIN from promoting anyone to OWNER', () => {
@@ -254,7 +281,7 @@ describe('PolicyService', () => {
           WorkspaceRole.MEMBER,
           WorkspaceRole.OWNER,
           false,
-          1,
+          1
         );
       }).toThrow('Only a workspace owner can promote a member to OWNER');
     });
@@ -266,7 +293,7 @@ describe('PolicyService', () => {
           WorkspaceRole.OWNER,
           WorkspaceRole.MEMBER,
           false,
-          2,
+          2
         );
       }).toThrow('Team admins cannot modify an OWNER role');
     });
@@ -278,7 +305,7 @@ describe('PolicyService', () => {
           WorkspaceRole.OWNER,
           WorkspaceRole.MEMBER,
           false,
-          1, // Only 1 active owner
+          1 // Only 1 active owner
         );
       }).toThrow('Cannot demote the last remaining OWNER of the workspace');
     });
@@ -290,7 +317,7 @@ describe('PolicyService', () => {
           WorkspaceRole.MEMBER,
           WorkspaceRole.TEAM_ADMIN,
           false,
-          1,
+          1
         );
       }).not.toThrow();
     });
@@ -299,56 +326,33 @@ describe('PolicyService', () => {
   describe('Last Owner & Removal Invariants: validateMemberRemoval', () => {
     it('should block removing the last remaining OWNER', () => {
       expect(() => {
-        service.validateMemberRemoval(
-          WorkspaceRole.OWNER,
-          WorkspaceRole.OWNER,
-          false,
-          1,
-        );
+        service.validateMemberRemoval(WorkspaceRole.OWNER, WorkspaceRole.OWNER, false, 1);
       }).toThrow('Cannot remove the last remaining owner of the workspace');
     });
 
     it('should block sole OWNER from leaving workspace without transfer', () => {
       expect(() => {
-        service.validateMemberRemoval(
-          WorkspaceRole.OWNER,
-          WorkspaceRole.OWNER,
-          true,
-          1,
-        );
-      }).toThrow('You are the sole owner of this workspace. You must transfer ownership before leaving.');
+        service.validateMemberRemoval(WorkspaceRole.OWNER, WorkspaceRole.OWNER, true, 1);
+      }).toThrow(
+        'You are the sole owner of this workspace. You must transfer ownership before leaving.'
+      );
     });
 
     it('should block TEAM_ADMIN from removing an OWNER', () => {
       expect(() => {
-        service.validateMemberRemoval(
-          WorkspaceRole.TEAM_ADMIN,
-          WorkspaceRole.OWNER,
-          false,
-          2,
-        );
+        service.validateMemberRemoval(WorkspaceRole.TEAM_ADMIN, WorkspaceRole.OWNER, false, 2);
       }).toThrow('Team admins cannot remove owners or other team admins');
     });
 
     it('should block TEAM_ADMIN from removing another TEAM_ADMIN', () => {
       expect(() => {
-        service.validateMemberRemoval(
-          WorkspaceRole.TEAM_ADMIN,
-          WorkspaceRole.TEAM_ADMIN,
-          false,
-          1,
-        );
+        service.validateMemberRemoval(WorkspaceRole.TEAM_ADMIN, WorkspaceRole.TEAM_ADMIN, false, 1);
       }).toThrow('Team admins cannot remove owners or other team admins');
     });
 
     it('should allow regular members to leave voluntarily', () => {
       expect(() => {
-        service.validateMemberRemoval(
-          WorkspaceRole.MEMBER,
-          WorkspaceRole.MEMBER,
-          true,
-          1,
-        );
+        service.validateMemberRemoval(WorkspaceRole.MEMBER, WorkspaceRole.MEMBER, true, 1);
       }).not.toThrow();
     });
   });

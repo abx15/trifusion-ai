@@ -1,19 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  Typography,
-  Paper,
-  Stack,
-} from '@mui/material';
-import {
-  KPICard,
-  EmptyState,
-  Table,
-  Alert,
-  Spinner,
-} from '@trifusion/ui';
+import { Box, Typography, Paper, Stack } from '@mui/material';
+import { KPICard, EmptyState, Table, Alert, Spinner } from '@trifusion/ui';
 import { PlatformDashboardShell } from '../../components/platform-dashboard-shell';
 import { usePlatformStaff } from '../../contexts/platform-staff-context';
 
@@ -35,6 +24,8 @@ interface PlatformStats {
   activeTenants: number;
   suspendedTenants: number;
   totalAuditEvents: number;
+  verifiedUsers: number;
+  unverifiedUsers: number;
   recentUsers: Array<{
     id: string;
     email: string;
@@ -67,12 +58,19 @@ export default function SuperadminDashboardPage() {
 
   if (!staff || staff.role !== 'SUPERADMIN') {
     return (
-      <section className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center" role="alert">
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
         <h1 className="text-xl font-semibold">SUPERADMIN access required</h1>
         <p className="mt-2 text-sm text-slate-600">
           Only the SUPERADMIN role can access the global platform control center.
         </p>
-        <button type="button" onClick={() => void refresh()} className="mt-5 rounded-md border px-4 py-2 text-sm">
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
           Refresh access
         </button>
       </section>
@@ -82,18 +80,19 @@ export default function SuperadminDashboardPage() {
   const statsQuery = useQuery<PlatformStats>({
     queryKey: ['superadmin-dashboard-stats', staff.id],
     queryFn: async () => {
-      const [users, workspaces, auditLogs] = await Promise.all([
+      const [metrics, users, workspaces, auditLogs] = await Promise.all([
+        fetchJson('/platform/v1/metrics'),
         fetchJson('/platform/v1/users?limit=10'),
         fetchJson('/platform/v1/workspaces?limit=10'),
         fetchJson('/platform/v1/audit-logs?limit=10'),
       ]);
 
-      const totalUsers = users.total ?? users.length ?? 0;
-      const activeUsers = users.users?.filter((u: any) => u.status === 'ACTIVE').length ?? 0;
-      const totalTenants = workspaces.total ?? workspaces.workspaces?.length ?? 0;
-      const activeTenants = workspaces.workspaces?.filter((w: any) => w.status === 'ACTIVE').length ?? 0;
-      const suspendedTenants = workspaces.workspaces?.filter((w: any) => w.status === 'SUSPENDED').length ?? 0;
-      const totalAuditEvents = auditLogs.length ?? 0;
+      const totalUsers = metrics.totalUsers ?? 0;
+      const activeUsers = metrics.activeUsers ?? 0;
+      const totalTenants = metrics.totalWorkspaces ?? 0;
+      const activeTenants = metrics.activeWorkspaces ?? 0;
+      const suspendedTenants = metrics.suspendedWorkspaces ?? 0;
+      const totalAuditEvents = auditLogs.total ?? auditLogs.length ?? 0;
 
       return {
         totalUsers,
@@ -102,6 +101,8 @@ export default function SuperadminDashboardPage() {
         activeTenants,
         suspendedTenants,
         totalAuditEvents,
+        verifiedUsers: metrics.verifiedUsers ?? 0,
+        unverifiedUsers: metrics.unverifiedUsers ?? 0,
         recentUsers: (users.users ?? []).map((u: any) => ({
           id: u.id,
           email: u.email,
@@ -157,29 +158,65 @@ export default function SuperadminDashboardPage() {
     <PlatformDashboardShell
       role="SUPERADMIN"
       navItems={[
-        { id: 'overview', label: 'Dashboard Overview', icon: 'LayoutDashboard', href: '/platform-admin/superadmin' },
-        { id: 'analytics', label: 'Platform Analytics', icon: 'BarChart', href: '/platform-admin/superadmin/analytics' },
-        { id: 'tenants', label: 'Tenant Management', icon: 'Building', href: '/platform-admin/superadmin/tenants' },
-        { id: 'users', label: 'User Management', icon: 'Users', href: '/platform-admin/superadmin/users' },
-        { id: 'staff', label: 'Platform Staff Management', icon: 'Shield', href: '/platform-admin/superadmin/staff' },
-        { id: 'roles', label: 'Role & Permission Management', icon: 'Lock', href: '/platform-admin/superadmin/roles' },
-        { id: 'config', label: 'Global Configuration', icon: 'Settings', href: '/platform-admin/superadmin/config' },
-        { id: 'subscriptions', label: 'Subscription Management', icon: 'CreditCard', href: '/platform-admin/superadmin/subscriptions' },
-        { id: 'health', label: 'Platform Health', icon: 'Activity', href: '/platform-admin/superadmin/health' },
-        { id: 'api-monitoring', label: 'API Monitoring', icon: 'Monitor', href: '/platform-admin/superadmin/api-monitoring' },
-        { id: 'security', label: 'Security Center', icon: 'Shield', href: '/platform-admin/superadmin/security' },
-        { id: 'audit-logs', label: 'Global Audit Logs', icon: 'Activity', href: '/platform-admin/superadmin/audit-logs' },
-        { id: 'reports', label: 'Reports', icon: 'BarChart', href: '/platform-admin/superadmin/reports' },
-        { id: 'integrations', label: 'Integrations', icon: 'Link', href: '/platform-admin/superadmin/integrations' },
-        { id: 'system-settings', label: 'System Settings', icon: 'Settings', href: '/platform-admin/superadmin/system-settings' },
+        {
+          id: 'overview',
+          label: 'Dashboard Overview',
+          icon: 'LayoutDashboard',
+          href: '/superadmin',
+        },
+        { id: 'analytics', label: 'Platform Analytics', icon: 'BarChart', href: '/analytics' },
+        { id: 'tenants', label: 'Tenant Management', icon: 'Building', href: '/workspaces' },
+        { id: 'users', label: 'User Management', icon: 'Users', href: '/users' },
+        { id: 'staff', label: 'Platform Staff Management', icon: 'Shield', href: '/staff' },
+        { id: 'roles', label: 'Role & Permission Management', icon: 'Lock', href: '/grants' },
+        { id: 'config', label: 'Global Configuration', icon: 'Settings', href: '/settings' },
+        {
+          id: 'subscriptions',
+          label: 'Subscription Management',
+          icon: 'CreditCard',
+          href: '/settings',
+        },
+        { id: 'health', label: 'Platform Health', icon: 'Activity', href: '/health' },
+        { id: 'api-monitoring', label: 'API Monitoring', icon: 'Monitor', href: '/metrics' },
+        { id: 'security', label: 'Security Center', icon: 'Shield', href: '/audit' },
+        { id: 'audit-logs', label: 'Global Audit Logs', icon: 'Activity', href: '/audit' },
+        { id: 'reports', label: 'Reports', icon: 'BarChart', href: '/analytics' },
+        { id: 'integrations', label: 'Integrations', icon: 'Link', href: '/settings' },
+        { id: 'system-settings', label: 'System Settings', icon: 'Settings', href: '/settings' },
       ]}
-      breadcrumbs={[{ label: 'Platform Control Center', href: '/platform-admin/superadmin' }, { label: 'Overview' }]}
+      breadcrumbs={[
+        { label: 'Platform Control Center', href: '/superadmin' },
+        { label: 'Overview' },
+      ]}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
-        <KPICard title="Total Registered Users" value={stats.totalUsers} trend={{ value: '+8% this month', positive: true }} icon={<div>👥</div>} />
-        <KPICard title="Active Users" value={stats.activeUsers} trend={{ value: '+5% this month', positive: true }} icon={<div>✅</div>} />
-        <KPICard title="Total Tenants" value={stats.totalTenants} trend={{ value: '+6% this month', positive: true }} icon={<div>🏢</div>} />
-        <KPICard title="Suspended Tenants" value={stats.suspendedTenants} trend={{ value: stats.suspendedTenants > 0 ? 'requires attention' : 'none', positive: stats.suspendedTenants === 0 }} icon={<div>⏸️</div>} />
+        <KPICard
+          title="Total Registered Users"
+          value={stats.totalUsers}
+          trend={{ value: 'Live database data', positive: true }}
+          icon={<div>👥</div>}
+        />
+        <KPICard
+          title="Active Users"
+          value={stats.activeUsers}
+          trend={{ value: 'Live database data', positive: true }}
+          icon={<div>✅</div>}
+        />
+        <KPICard
+          title="Total Tenants"
+          value={stats.totalTenants}
+          trend={{ value: 'Live database data', positive: true }}
+          icon={<div>🏢</div>}
+        />
+        <KPICard
+          title="Suspended Tenants"
+          value={stats.suspendedTenants}
+          trend={{
+            value: stats.suspendedTenants > 0 ? 'requires attention' : 'none',
+            positive: stats.suspendedTenants === 0,
+          }}
+          icon={<div>⏸️</div>}
+        />
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
@@ -216,16 +253,33 @@ export default function SuperadminDashboardPage() {
               Recent Platform Activity
             </Typography>
             {stats.recentActivity.length > 0 ? (
-              <Box sx={{ maxHeight: 400, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box
+                sx={{
+                  maxHeight: 400,
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1,
+                }}
+              >
                 {stats.recentActivity.slice(0, 8).map((log) => (
-                  <Box key={log.id} className="flex items-center justify-between p-2 rounded-md border border-divider/50">
+                  <Box
+                    key={log.id}
+                    className="flex items-center justify-between p-2 rounded-md border border-divider/50"
+                  >
                     <Box className="flex items-center gap-2">
                       <Typography variant="body2">{log.action.replaceAll('_', ' ')}</Typography>
-                      <Typography variant="caption" color="text.secondary">{log.targetType}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {log.targetType}
+                      </Typography>
                     </Box>
                     <Box className="flex items-center gap-2">
-                      <Typography variant="caption" color="text.secondary">{log.actorType}</Typography>
-                      <Typography variant="caption" color="text.secondary">{new Date(log.createdAt).toLocaleDateString()}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {log.actorType}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(log.createdAt).toLocaleDateString()}
+                      </Typography>
                     </Box>
                   </Box>
                 ))}
@@ -263,23 +317,28 @@ export default function SuperadminDashboardPage() {
                 emptyMessage="No tenants found."
               />
             ) : (
-              <EmptyState title="No tenants" description="No workspaces registered on the platform." />
+              <EmptyState
+                title="No tenants"
+                description="No workspaces registered on the platform."
+              />
             )}
           </Stack>
         </Paper>
         <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>Platform Quick Actions</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Platform Quick Actions
+          </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
-            <LinkCmp href="/platform-admin/superadmin/staff" variant="outlined" startIcon={<div>🛡️</div>}>
+            <LinkCmp href="/staff" variant="outlined" startIcon={<div>🛡️</div>}>
               Manage Staff Roles
             </LinkCmp>
-            <LinkCmp href="/platform-admin/superadmin/config" variant="outlined" startIcon={<div>⚙️</div>}>
+            <LinkCmp href="/settings" variant="outlined" startIcon={<div>⚙️</div>}>
               Global Configuration
             </LinkCmp>
-            <LinkCmp href="/platform-admin/superadmin/tenants" variant="outlined" startIcon={<div>🏢</div>}>
+            <LinkCmp href="/workspaces" variant="outlined" startIcon={<div>🏢</div>}>
               Tenant Management
             </LinkCmp>
-            <LinkCmp href="/platform-admin/superadmin/audit-logs" variant="outlined" startIcon={<div>📋</div>}>
+            <LinkCmp href="/audit" variant="outlined" startIcon={<div>📋</div>}>
               Global Audit Logs
             </LinkCmp>
           </Box>
@@ -289,12 +348,24 @@ export default function SuperadminDashboardPage() {
   );
 }
 
-function LinkCmp({ children, variant, href, startIcon }: { children: React.ReactNode; variant?: 'contained' | 'outlined'; href: string; startIcon?: React.ReactNode }) {
+function LinkCmp({
+  children,
+  variant,
+  href,
+  startIcon,
+}: {
+  children: React.ReactNode;
+  variant?: 'contained' | 'outlined';
+  href: string;
+  startIcon?: React.ReactNode;
+}) {
   return (
     <a
       href={href}
       className={`flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm font-medium border transition-colors ${
-        variant === 'outlined' ? 'border-divider text-slate-700 hover:bg-slate-100' : 'bg-primary text-white hover:bg-primary-dark'
+        variant === 'outlined'
+          ? 'border-divider text-slate-700 hover:bg-slate-100'
+          : 'bg-primary text-white hover:bg-primary-dark'
       }`}
     >
       {startIcon && <span>{startIcon}</span>}

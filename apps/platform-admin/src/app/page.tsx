@@ -7,11 +7,11 @@ import { Spinner } from '@trifusion/ui';
 
 function getPlatformDashboardPath(role: string): string {
   switch (role) {
-    case 'SUPERADMIN': return '/platform-admin/superadmin';
-    case 'PLATFORM_ADMIN': return '/platform-admin/admin';
-    case 'ANALYST': return '/platform-admin/analyst';
-    case 'SUPPORT_AGENT': return '/platform-admin/support';
-    default: return '/platform-admin/support';
+    case 'SUPERADMIN': return '/superadmin';
+    case 'PLATFORM_ADMIN': return '/admin';
+    case 'ANALYST': return '/analyst';
+    case 'SUPPORT_AGENT': return '/support';
+    default: return '/support';
   }
 }
 

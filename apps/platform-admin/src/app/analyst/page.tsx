@@ -1,20 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  Typography,
-  Paper,
-  Stack,
-  Chip,
-} from '@mui/material';
-import {
-  KPICard,
-  EmptyState,
-  Table,
-  Alert,
-  Spinner,
-} from '@trifusion/ui';
+import { Box, Typography, Paper, Stack, Chip } from '@mui/material';
+import { KPICard, EmptyState, Table, Alert, Spinner } from '@trifusion/ui';
 import { PlatformDashboardShell } from '../../components/platform-dashboard-shell';
 import { usePlatformStaff } from '../../contexts/platform-staff-context';
 import {
@@ -53,6 +41,7 @@ interface AnalystStats {
     actorId: string;
     createdAt: string;
   }>;
+  unavailableMetrics: string[];
 }
 
 export default function AnalystDashboardPage() {
@@ -60,12 +49,19 @@ export default function AnalystDashboardPage() {
 
   if (!staff || !['ANALYST', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
     return (
-      <section className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center" role="alert">
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
         <h1 className="text-xl font-semibold">Analyst access required</h1>
         <p className="mt-2 text-sm text-slate-600">
           Only ANALYST, SUPERADMIN, or PLATFORM_ADMIN can access platform analytics.
         </p>
-        <button type="button" onClick={() => void refresh()} className="mt-5 rounded-md border px-4 py-2 text-sm">
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
           Refresh access
         </button>
       </section>
@@ -80,13 +76,13 @@ export default function AnalystDashboardPage() {
         fetchJson('/platform/v1/audit-logs?limit=20'),
       ]);
 
-      const userGrowth = (metrics.userGrowth ?? []).map((m: any, i: number) => ({
-        name: m.name || `Month ${i + 1}`,
+      const userGrowth = (metrics.userGrowth ?? []).map((m: any) => ({
+        name: m.name,
         users: m.users ?? 0,
         tenants: m.tenants ?? 0,
       }));
-      const apiTrends = (metrics.apiTrends ?? []).map((m: any, i: number) => ({
-        name: m.name || `Period ${i + 1}`,
+      const apiTrends = (metrics.apiTrends ?? []).map((m: any) => ({
+        name: m.name,
         requests: m.requests ?? 0,
         errors: m.errors ?? 0,
       }));
@@ -94,8 +90,8 @@ export default function AnalystDashboardPage() {
         name: m.name || 'Unknown',
         value: m.value ?? 0,
       }));
-      const performanceTrends = (metrics.performanceTrends ?? []).map((m: any, i: number) => ({
-        name: m.name || `Period ${i + 1}`,
+      const performanceTrends = (metrics.performanceTrends ?? []).map((m: any) => ({
+        name: m.name,
         avgResponse: m.avgResponse ?? 0,
         p95: m.p95 ?? 0,
       }));
@@ -106,28 +102,12 @@ export default function AnalystDashboardPage() {
       }));
 
       return {
-        userGrowth: userGrowth.length > 0 ? userGrowth : [
-          { name: 'Jan', users: 0, tenants: 0 },
-          { name: 'Feb', users: 0, tenants: 0 },
-          { name: 'Mar', users: 0, tenants: 0 },
-          { name: 'Apr', users: 0, tenants: 0 },
-          { name: 'May', users: 0, tenants: 0 },
-          { name: 'Jun', users: 0, tenants: 0 },
-        ],
-        apiTrends: apiTrends.length > 0 ? apiTrends : [
-          { name: 'Week 1', requests: 0, errors: 0 },
-          { name: 'Week 2', requests: 0, errors: 0 },
-          { name: 'Week 3', requests: 0, errors: 0 },
-          { name: 'Week 4', requests: 0, errors: 0 },
-        ],
-        usageDistribution: usageDistribution.length > 0 ? usageDistribution : [{ name: 'No data', value: 0 }],
-        performanceTrends: performanceTrends.length > 0 ? performanceTrends : [
-          { name: 'Week 1', avgResponse: 0, p95: 0 },
-          { name: 'Week 2', avgResponse: 0, p95: 0 },
-          { name: 'Week 3', avgResponse: 0, p95: 0 },
-          { name: 'Week 4', avgResponse: 0, p95: 0 },
-        ],
-        resourceConsumption: resourceConsumption.length > 0 ? resourceConsumption : [{ name: 'No data', used: 0, total: 100 }],
+        userGrowth,
+        apiTrends,
+        usageDistribution,
+        performanceTrends,
+        resourceConsumption,
+        unavailableMetrics: metrics.unavailableMetrics ?? [],
         recentActivity: (auditLogs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
@@ -151,7 +131,11 @@ export default function AnalystDashboardPage() {
     );
   }
   if (error) {
-    return <Alert severity="error">{error instanceof Error ? error.message : 'Unable to load analytics data.'}</Alert>;
+    return (
+      <Alert severity="error">
+        {error instanceof Error ? error.message : 'Unable to load analytics data.'}
+      </Alert>
+    );
   }
 
   const stats = statsQuery.data!;
@@ -164,25 +148,103 @@ export default function AnalystDashboardPage() {
     <PlatformDashboardShell
       role="ANALYST"
       navItems={[
-        { id: 'overview', label: 'Analytics Overview', icon: 'LayoutDashboard', href: '/platform-admin/analyst' },
-        { id: 'user-analytics', label: 'User Analytics', icon: 'Users', href: '/platform-admin/analyst/user-analytics' },
-        { id: 'tenant-analytics', label: 'Tenant Analytics', icon: 'Building', href: '/platform-admin/analyst/tenant-analytics' },
-        { id: 'growth-analytics', label: 'Growth Analytics', icon: 'TrendingUp', href: '/platform-admin/analyst/growth-analytics' },
-        { id: 'api-analytics', label: 'API Analytics', icon: 'Monitor', href: '/platform-admin/analyst/api-analytics' },
-        { id: 'performance-analytics', label: 'Performance Analytics', icon: 'Activity', href: '/platform-admin/analyst/performance-analytics' },
-        { id: 'resource-analytics', label: 'Resource Analytics', icon: 'HardDrive', href: '/platform-admin/analyst/resource-analytics' },
-        { id: 'usage-reports', label: 'Usage Reports', icon: 'FileText', href: '/platform-admin/analyst/usage-reports' },
-        { id: 'audit-analytics', label: 'Audit Analytics', icon: 'Activity', href: '/platform-admin/analyst/audit-analytics' },
-        { id: 'custom-reports', label: 'Custom Reports', icon: 'BarChart', href: '/platform-admin/analyst/custom-reports' },
-        { id: 'export-center', label: 'Export Center', icon: 'Download', href: '/platform-admin/analyst/export-center' },
+        {
+          id: 'overview',
+          label: 'Analytics Overview',
+          icon: 'LayoutDashboard',
+          href: '/platform-admin/analyst',
+        },
+        {
+          id: 'user-analytics',
+          label: 'User Analytics',
+          icon: 'Users',
+          href: '/platform-admin/analyst/user-analytics',
+        },
+        {
+          id: 'tenant-analytics',
+          label: 'Tenant Analytics',
+          icon: 'Building',
+          href: '/platform-admin/analyst/tenant-analytics',
+        },
+        {
+          id: 'growth-analytics',
+          label: 'Growth Analytics',
+          icon: 'TrendingUp',
+          href: '/platform-admin/analyst/growth-analytics',
+        },
+        {
+          id: 'api-analytics',
+          label: 'API Analytics',
+          icon: 'Monitor',
+          href: '/platform-admin/analyst/api-analytics',
+        },
+        {
+          id: 'performance-analytics',
+          label: 'Performance Analytics',
+          icon: 'Activity',
+          href: '/platform-admin/analyst/performance-analytics',
+        },
+        {
+          id: 'resource-analytics',
+          label: 'Resource Analytics',
+          icon: 'HardDrive',
+          href: '/platform-admin/analyst/resource-analytics',
+        },
+        {
+          id: 'usage-reports',
+          label: 'Usage Reports',
+          icon: 'FileText',
+          href: '/platform-admin/analyst/usage-reports',
+        },
+        {
+          id: 'audit-analytics',
+          label: 'Audit Analytics',
+          icon: 'Activity',
+          href: '/platform-admin/analyst/audit-analytics',
+        },
+        {
+          id: 'custom-reports',
+          label: 'Custom Reports',
+          icon: 'BarChart',
+          href: '/platform-admin/analyst/custom-reports',
+        },
+        {
+          id: 'export-center',
+          label: 'Export Center',
+          icon: 'Download',
+          href: '/platform-admin/analyst/export-center',
+        },
       ]}
-      breadcrumbs={[{ label: 'Platform Analytics', href: '/platform-admin/analyst' }, { label: 'Overview' }]}
+      breadcrumbs={[
+        { label: 'Platform Analytics', href: '/platform-admin/analyst' },
+        { label: 'Overview' },
+      ]}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
-        <KPICard title="Total Users (Period)" value={totalUsers} trend={{ value: '+12% vs prior', positive: true }} icon={<UsersIcon style={{ fontSize: 20, color: '#003F5C' }} />} />
-        <KPICard title="Total Tenants (Period)" value={totalTenants} trend={{ value: '+8% vs prior', positive: true }} icon={<Building style={{ fontSize: 20, color: '#58508D' }} />} />
-        <KPICard title="API Requests" value={totalApiRequests} trend={{ value: '+15% vs prior', positive: true }} icon={<Monitor style={{ fontSize: 20, color: '#8A508F' }} />} />
-        <KPICard title="API Errors" value={totalApiErrors} trend={{ value: totalApiErrors > 0 ? 'monitor closely' : 'healthy', positive: totalApiErrors === 0 }} icon={<Activity style={{ fontSize: 20, color: '#FF6361' }} />} />
+        <KPICard
+          title="Users (last 6 months)"
+          value={totalUsers}
+          trend={{ value: 'Live database data', positive: true }}
+          icon={<UsersIcon style={{ fontSize: 20, color: '#003F5C' }} />}
+        />
+        <KPICard
+          title="Workspaces (last 6 months)"
+          value={totalTenants}
+          trend={{ value: 'Live database data', positive: true }}
+          icon={<Building style={{ fontSize: 20, color: '#58508D' }} />}
+        />
+        <KPICard
+          title="API Requests"
+          value={
+            stats.unavailableMetrics.includes('apiRequests') ? 'Unavailable' : totalApiRequests
+          }
+          icon={<Monitor style={{ fontSize: 20, color: '#8A508F' }} />}
+        />
+        <KPICard
+          title="API Errors"
+          value={stats.unavailableMetrics.includes('apiErrors') ? 'Unavailable' : totalApiErrors}
+          icon={<Activity style={{ fontSize: 20, color: '#FF6361' }} />}
+        />
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
@@ -198,8 +260,20 @@ export default function AnalystDashboardPage() {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Line type="monotone" dataKey="users" stroke="#003F5C" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="tenants" stroke="#8A508F" strokeWidth={2} dot={false} />
+                  <Line
+                    type="monotone"
+                    dataKey="users"
+                    stroke="#003F5C"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="tenants"
+                    stroke="#8A508F"
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </Box>
@@ -214,7 +288,8 @@ export default function AnalystDashboardPage() {
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
               Usage Distribution
             </Typography>
-            {stats.usageDistribution.length > 0 && stats.usageDistribution.some((d) => d.value > 0) ? (
+            {stats.usageDistribution.length > 0 &&
+            stats.usageDistribution.some((d) => d.value > 0) ? (
               <Box sx={{ height: 300 }}>
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={stats.usageDistribution}>
@@ -227,7 +302,10 @@ export default function AnalystDashboardPage() {
                 </ResponsiveContainer>
               </Box>
             ) : (
-              <EmptyState title="No usage data" description="Usage distribution data is not yet available." />
+              <EmptyState
+                title="No usage data"
+                description="Usage distribution data is not yet available."
+              />
             )}
           </Stack>
         </Paper>
@@ -239,18 +317,25 @@ export default function AnalystDashboardPage() {
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
               API Request Trends
             </Typography>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={stats.apiTrends}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="requests" fill="#003F5C" radius={[4, 4, 0, 0]} stackId="a" />
-                  <Bar dataKey="errors" fill="#FF6361" radius={[4, 4, 0, 0]} stackId="a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </Box>
+            {stats.apiTrends.length > 0 ? (
+              <Box sx={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={stats.apiTrends}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="requests" fill="#003F5C" radius={[4, 4, 0, 0]} stackId="a" />
+                    <Bar dataKey="errors" fill="#FF6361" radius={[4, 4, 0, 0]} stackId="a" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            ) : (
+              <EmptyState
+                title="API request data unavailable"
+                description="Request telemetry is not persisted in the current database schema."
+              />
+            )}
             <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
               <Chip label="Requests" color="primary" size="small" />
               <Chip label="Errors" color="error" size="small" />
@@ -262,18 +347,37 @@ export default function AnalystDashboardPage() {
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
               Performance Trends
             </Typography>
-            <Box sx={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height={260}>
-                <LineChart data={stats.performanceTrends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="avgResponse" stroke="#58508D" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="p95" stroke="#BC5090" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Box>
+            {stats.performanceTrends.length > 0 ? (
+              <Box sx={{ height: 260 }}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={stats.performanceTrends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line
+                      type="monotone"
+                      dataKey="avgResponse"
+                      stroke="#58508D"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="p95"
+                      stroke="#BC5090"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Box>
+            ) : (
+              <EmptyState
+                title="Performance data unavailable"
+                description="Latency telemetry is not persisted in the current database schema."
+              />
+            )}
             <Box sx={{ display: 'flex', gap: 3, mt: 1 }}>
               <Chip label="Avg Response" color="secondary" size="small" />
               <Chip label="P95" color="secondary" size="small" />
@@ -288,7 +392,8 @@ export default function AnalystDashboardPage() {
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
               Resource Consumption
             </Typography>
-            {stats.resourceConsumption.length > 0 && stats.resourceConsumption.some((d) => d.used > 0) ? (
+            {stats.resourceConsumption.length > 0 &&
+            stats.resourceConsumption.some((d) => d.used > 0) ? (
               <Box>
                 {stats.resourceConsumption.map((r) => {
                   const pct = Math.min((r.used / Math.max(r.total, 1)) * 100, 100);
@@ -300,15 +405,32 @@ export default function AnalystDashboardPage() {
                           {r.used} / {r.total}
                         </Typography>
                       </Box>
-                      <Box sx={{ height: 8, backgroundColor: 'action.hover', borderRadius: 4, overflow: 'hidden' }}>
-                        <Box sx={{ height: '100%', backgroundColor: 'primary.main', borderRadius: 4, width: `${pct}%` }} />
+                      <Box
+                        sx={{
+                          height: 8,
+                          backgroundColor: 'action.hover',
+                          borderRadius: 4,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            height: '100%',
+                            backgroundColor: 'primary.main',
+                            borderRadius: 4,
+                            width: `${pct}%`,
+                          }}
+                        />
                       </Box>
                     </Box>
                   );
                 })}
               </Box>
             ) : (
-              <EmptyState title="No resource data" description="Resource consumption data is not yet available." />
+              <EmptyState
+                title="No resource data"
+                description="Resource consumption data is not yet available."
+              />
             )}
           </Stack>
         </Paper>
@@ -333,7 +455,10 @@ export default function AnalystDashboardPage() {
                 emptyMessage="No audit events found."
               />
             ) : (
-              <EmptyState title="No audit events" description="Platform audit events will appear here." />
+              <EmptyState
+                title="No audit events"
+                description="Platform audit events will appear here."
+              />
             )}
           </Stack>
         </Paper>

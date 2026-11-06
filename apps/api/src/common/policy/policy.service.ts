@@ -74,10 +74,7 @@ export class PolicyService {
    * Server-side workspace context resolution.
    * Checks both workspace active status and active membership.
    */
-  async getWorkspaceContext(
-    userId: string,
-    workspaceId: string,
-  ): Promise<WorkspaceContext> {
+  async getWorkspaceContext(userId: string, workspaceId: string): Promise<WorkspaceContext> {
     if (!workspaceId) {
       throw new BadRequestException('Workspace ID is required');
     }
@@ -122,13 +119,13 @@ export class PolicyService {
   async requireWorkspaceRole(
     userId: string,
     workspaceId: string,
-    requiredRole: WorkspaceRole,
+    requiredRole: WorkspaceRole
   ): Promise<WorkspaceContext> {
     const context = await this.getWorkspaceContext(userId, workspaceId);
 
     if (ROLE_HIERARCHY[context.role] < ROLE_HIERARCHY[requiredRole]) {
       throw new ForbiddenException(
-        `Insufficient permissions in workspace. Required: ${requiredRole}, Current: ${context.role}`,
+        `Insufficient permissions in workspace. Required: ${requiredRole}, Current: ${context.role}`
       );
     }
 
@@ -159,7 +156,7 @@ export class PolicyService {
    */
   async requirePlatformRole(
     userId: string,
-    requiredRole: PlatformStaffRoleType,
+    requiredRole: PlatformStaffRoleType
   ): Promise<PlatformStaffContext> {
     const staffContext = await this.getPlatformStaffContext(userId);
 
@@ -169,7 +166,7 @@ export class PolicyService {
 
     if (PLATFORM_ROLE_HIERARCHY[staffContext.role] < PLATFORM_ROLE_HIERARCHY[requiredRole]) {
       throw new ForbiddenException(
-        `Insufficient platform privileges. Required: ${requiredRole}, Current: ${staffContext.role}`,
+        `Insufficient platform privileges. Required: ${requiredRole}, Current: ${staffContext.role}`
       );
     }
 
@@ -188,7 +185,7 @@ export class PolicyService {
     targetCurrentRole: WorkspaceRole,
     newRole: WorkspaceRole,
     isSelf: boolean,
-    activeOwnerCount: number,
+    activeOwnerCount: number
   ): void {
     if (isSelf) {
       throw new ForbiddenException('You cannot modify your own workspace role');
@@ -229,13 +226,13 @@ export class PolicyService {
     actorRole: WorkspaceRole,
     targetRole: WorkspaceRole,
     isSelf: boolean,
-    activeOwnerCount: number,
+    activeOwnerCount: number
   ): void {
     if (targetRole === 'OWNER' && activeOwnerCount <= 1) {
       throw new BadRequestException(
         isSelf
           ? 'You are the sole owner of this workspace. You must transfer ownership before leaving.'
-          : 'Cannot remove the last remaining owner of the workspace.',
+          : 'Cannot remove the last remaining owner of the workspace.'
       );
     }
 
@@ -299,7 +296,7 @@ export class PolicyService {
     actorId: string,
     targetUserId: string,
     newRole: PlatformStaffRoleType,
-    action: 'grant' | 'revoke',
+    action: 'grant' | 'revoke'
   ): Promise<void> {
     // Actor must be SUPERADMIN to modify platform roles
     const actorStaff = await this.prisma.platformStaffRole.findFirst({
@@ -327,6 +324,58 @@ export class PolicyService {
       if (superadminCount <= 1) {
         throw new BadRequestException('Cannot revoke the last remaining SUPERADMIN');
       }
+    }
+  }
+
+  /**
+   * Account status changes must not be able to remove the final active
+   * SUPERADMIN. This is separate from role revocation because platform
+   * administrators can manage user account status.
+   */
+  async validatePlatformUserStatusChange(
+    actorId: string,
+    targetUserId: string,
+    newStatus: UserStatus
+  ): Promise<void> {
+    const actor = await this.getPlatformStaffContext(actorId);
+    if (!actor || PLATFORM_ROLE_HIERARCHY[actor.role] < PLATFORM_ROLE_HIERARCHY.PLATFORM_ADMIN) {
+      throw new ForbiddenException('Platform administrator access required');
+    }
+
+    if (actorId === targetUserId) {
+      throw new ForbiddenException('Cannot change your own platform account status');
+    }
+
+    if (newStatus === UserStatus.ACTIVE) {
+      return;
+    }
+
+    const targetSuperadmin = await this.prisma.platformStaffRole.findFirst({
+      where: {
+        userId: targetUserId,
+        role: PlatformStaffRoleType.SUPERADMIN,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (!targetSuperadmin) {
+      return;
+    }
+
+    if (actor.role !== PlatformStaffRoleType.SUPERADMIN) {
+      throw new ForbiddenException('Only SUPERADMIN can restrict another SUPERADMIN');
+    }
+
+    const activeSuperadminCount = await this.prisma.platformStaffRole.count({
+      where: {
+        role: PlatformStaffRoleType.SUPERADMIN,
+        status: 'ACTIVE',
+        user: { status: UserStatus.ACTIVE },
+      },
+    });
+
+    if (activeSuperadminCount <= 1) {
+      throw new BadRequestException('Cannot restrict the last active SUPERADMIN');
     }
   }
 

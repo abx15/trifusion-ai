@@ -99,14 +99,14 @@ export default function PlatformLoginPage() {
       // Step 3: Redirect to role-specific dashboard
       const role = String(staffData.role);
       const roleDashboardPaths: Record<string, string> = {
-        SUPERADMIN: '/platform-admin/superadmin',
-        PLATFORM_ADMIN: '/platform-admin/admin',
-        ANALYST: '/platform-admin/analyst',
-        SUPPORT_AGENT: '/platform-admin/support',
+        SUPERADMIN: '/superadmin',
+        PLATFORM_ADMIN: '/admin',
+        ANALYST: '/analyst',
+        SUPPORT_AGENT: '/support',
       };
 
       const nextPath = new URLSearchParams(window.location.search).get('next');
-      const protectedPaths = ['/platform-admin/superadmin', '/platform-admin/admin', '/platform-admin/analyst', '/platform-admin/support', '/audit', '/analytics', '/users', '/settings', '/health', '/metrics', '/staff', '/workspaces', '/grants', '/flags'];
+      const protectedPaths = ['/superadmin', '/admin', '/analyst', '/support', '/audit', '/analytics', '/users', '/settings', '/health', '/metrics', '/staff', '/workspaces', '/grants', '/flags'];
       const target = nextPath && protectedPaths.includes(nextPath) ? nextPath : roleDashboardPaths[role];
 
       router.replace(target);
