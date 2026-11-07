@@ -110,14 +110,14 @@ export default function TeamAdminDashboardPage() {
         { label: 'Overview' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard title="Team Members" value={stats.memberCount} icon={<UsersIcon style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Active Projects" value={stats.projectCount} icon={<FolderKanban style={{ fontSize: 20, color: '#58508D' }} />} />
         <KPICard title="Assigned Tasks" value={stats.taskCount} trend={{ value: `${stats.completedTasks} completed`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#8A508F' }} />} />
         <KPICard title="Overdue Tasks" value={stats.overdueTasks} trend={{ value: stats.overdueTasks > 0 ? 'requires attention' : 'all on track', positive: stats.overdueTasks === 0 }} icon={<Clock style={{ fontSize: 20, color: '#FF6361' }} />} />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
