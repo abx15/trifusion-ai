@@ -39,8 +39,8 @@ export const ROLE_HIERARCHY: Record<WorkspaceRole, number> = {
 };
 
 export const PLATFORM_ROLE_HIERARCHY: Record<PlatformStaffRoleType, number> = {
-  ANALYST: 1,
-  SUPPORT_AGENT: 2,
+  SUPPORT_AGENT: 1,
+  ANALYST: 2,
   PLATFORM_ADMIN: 3,
   SUPERADMIN: 4,
 };
