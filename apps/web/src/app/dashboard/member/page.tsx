@@ -13,12 +13,12 @@ import {
   EmptyState,
   Table,
   Alert,
-  Spinner,
 } from '@trifusion/ui';
 import { DashboardShell } from '../../../components/dashboard-shell';
+import { DashboardLoadingSkeleton } from '../../../components/dashboard-loading-skeleton';
 import { useAuth } from '../../../contexts/auth-context';
 import { useWorkspace } from '../../../contexts/workspace-context';
-import { apiClient, ApiClientError } from '../../../lib/api-client';
+import { apiClient, ApiClientError, fetchWorkspaceOverview } from '../../../lib/api-client';
 import { CUSTOMER_ROLE_CONFIGS } from '@trifusion/contracts';
 import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Bar } from 'recharts';
 import { CheckSquare, Activity, Clock } from 'lucide-react';
@@ -64,12 +64,13 @@ export default function MemberDashboardPage() {
   const statsQuery = useQuery<MemberStats>({
     queryKey: ['member-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [overview, tasks, activity] = await Promise.all([
+      const [overview, tasks, activity, graphOverview] = await Promise.all([
         apiClient.analytics.overview(workspace!.id, { assigneeId: user?.id }),
         apiClient.tasks.list(workspace!.id, { limit: 50, assigneeId: user?.id }),
         apiClient.activity.list(workspace!.id, { limit: 10 }),
+        fetchWorkspaceOverview(workspace!.id),
       ]);
-      const taskStatusCounts = overview.metrics.taskStatusCounts;
+      const taskStatusCounts = graphOverview.taskStatusCounts;
       const recentTasks = tasks.data.map((task) => ({
         id: task.id,
         title: task.title,
@@ -89,7 +90,7 @@ export default function MemberDashboardPage() {
       const assignedProjects = overview.metrics.assignedProjects;
 
       return {
-        assignedTasks: taskStatusCounts.reduce((sum, item) => sum + item.count, 0),
+        assignedTasks: graphOverview.taskCount,
         pendingTasks,
         completedTasks,
         overdueTasks: overview.metrics.overdueTasks,
@@ -109,14 +110,7 @@ export default function MemberDashboardPage() {
   if (!workspace) {
     return <div className="flex min-h-[60vh] items-center justify-center">Select a workspace to continue.</div>;
   }
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center" role="status">
-        <Spinner size="large" />
-        <span className="ml-2">Loading your dashboard…</span>
-      </div>
-    );
-  }
+  if (loading) return <DashboardLoadingSkeleton title="Loading your assigned work" />;
   if (error) {
     return <Alert severity="error">{error instanceof ApiClientError ? error.message : 'Unable to load dashboard data.'}</Alert>;
   }
