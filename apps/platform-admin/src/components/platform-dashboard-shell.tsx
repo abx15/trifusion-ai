@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Box,
   Toolbar,
+  IconButton,
   Typography,
   List,
   ListItem,
@@ -76,19 +77,20 @@ export function PlatformDashboardShell({
             right: 0,
             bottom: 0,
             zIndex: 50,
-            bg: 'background.paper',
+            bgcolor: 'background.paper',
             p: 3,
             pb: 20,
             overflowY: 'auto',
           }}
           className="lg:hidden"
         >
-          <Toolbar sx={{ pr: 2, pb: 2 }}>
+          <Toolbar sx={{ pr: 2, pb: 2, justifyContent: 'space-between' }}>
             <Link href={getPlatformDashboardPath(role)} style={{ textDecoration: 'none' }}>
               <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: -0.5 }}>
                 TriFusion <span className="text-primary">Platform</span>
               </Typography>
             </Link>
+            <IconButton aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)}>×</IconButton>
           </Toolbar>
           <Box sx={{ pt: 1, px: 1 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, fontWeight: 600 }}>
@@ -179,8 +181,9 @@ export function PlatformDashboardShell({
       </Box>
 
       <div className="min-w-0 flex-1">
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bg: 'background.paper' }}>
-          <Box sx={{ display: { xs: 'none', md: 'flex' }, flex: 1, minWidth: 0, ml: 2, mr: 2 }}>
+        <Box sx={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)' }}>
+          <IconButton aria-label="Open navigation" onClick={() => setMobileMenuOpen(true)} sx={{ display: { xs: 'inline-flex', lg: 'none' }, mr: 1 }}>☰</IconButton>
+          <Box sx={{ display: 'flex', flex: 1, minWidth: 0, ml: 1, mr: 2, alignItems: 'center', gap: 2 }}>
             <Link href={getPlatformDashboardPath(role)} style={{ textDecoration: 'none' }}>
               <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: -0.25, mb: 0.5, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Platform Administration
@@ -224,7 +227,7 @@ export function PlatformDashboardShell({
           </Box>
         )}
 
-        <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+        <main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

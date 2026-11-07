@@ -13,12 +13,12 @@ import {
   EmptyState,
   Table,
   Alert,
-  Spinner,
 } from '@trifusion/ui';
 import { DashboardShell } from '../../../components/dashboard-shell';
+import { DashboardLoadingSkeleton } from '../../../components/dashboard-loading-skeleton';
 import { useAuth } from '../../../contexts/auth-context';
 import { useWorkspace } from '../../../contexts/workspace-context';
-import { apiClient, ApiClientError, type WorkspaceMember } from '../../../lib/api-client';
+import { apiClient, ApiClientError, fetchWorkspaceOverview, type WorkspaceMember } from '../../../lib/api-client';
 import { CUSTOMER_ROLE_CONFIGS } from '@trifusion/contracts';
 import { PieChart, Pie, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { FolderKanban, CheckSquare, Users as UsersIcon, Activity } from 'lucide-react';
@@ -59,14 +59,15 @@ export default function OwnerDashboardPage() {
   const statsQuery = useQuery<WorkspaceStats>({
     queryKey: ['owner-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [membersResult, invitationsResult, overview, activity] = await Promise.all([
+      const [membersResult, invitationsResult, overview, activity, graphOverview] = await Promise.all([
         apiClient.workspaces.members(workspace!.id),
         apiClient.workspaces.invitations(workspace!.id),
         apiClient.analytics.overview(workspace!.id),
         apiClient.activity.list(workspace!.id, { limit: 10 }),
+        fetchWorkspaceOverview(workspace!.id),
       ]);
-      const projectCount = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
-      const taskCount = overview.metrics.taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const projectCount = graphOverview.projectCount;
+      const taskCount = graphOverview.taskCount;
 
       return {
         projectCount,
@@ -75,8 +76,8 @@ export default function OwnerDashboardPage() {
         pendingInvitations: invitationsResult.filter((i) => i.status === 'PENDING').length,
         overdueTasks: overview.metrics.overdueTasks,
         upcomingDeadlines: overview.metrics.upcomingDeadlines,
-        taskStatusCounts: overview.metrics.taskStatusCounts,
-        projectStatusCounts: overview.metrics.projectStatusCounts,
+        taskStatusCounts: graphOverview.taskStatusCounts,
+        projectStatusCounts: graphOverview.projectStatusCounts,
         recentActivity: activity.data,
         members: membersResult,
       };
@@ -90,14 +91,7 @@ export default function OwnerDashboardPage() {
   if (!workspace) {
     return <div className="flex min-h-[60vh] items-center justify-center">Select a workspace to continue.</div>;
   }
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center" role="status">
-        <Spinner size="large" />
-        <span className="ml-2">Loading workspace overview…</span>
-      </div>
-    );
-  }
+  if (loading) return <DashboardLoadingSkeleton title="Preparing your owner overview" />;
   if (error) {
     return (
       <Alert severity="error">

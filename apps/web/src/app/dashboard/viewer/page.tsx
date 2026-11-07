@@ -12,12 +12,12 @@ import {
   EmptyState,
   Table,
   Alert,
-  Spinner,
 } from '@trifusion/ui';
 import { DashboardShell } from '../../../components/dashboard-shell';
+import { DashboardLoadingSkeleton } from '../../../components/dashboard-loading-skeleton';
 import { useAuth } from '../../../contexts/auth-context';
 import { useWorkspace } from '../../../contexts/workspace-context';
-import { apiClient, ApiClientError } from '../../../lib/api-client';
+import { apiClient, ApiClientError, fetchWorkspaceOverview } from '../../../lib/api-client';
 import { CUSTOMER_ROLE_CONFIGS } from '@trifusion/contracts';
 import { BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Bar } from 'recharts';
 import { FolderKanban, CheckSquare, Users as UsersIcon } from 'lucide-react';
@@ -55,15 +55,16 @@ export default function ViewerDashboardPage() {
   const statsQuery = useQuery<ViewerStats>({
     queryKey: ['viewer-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [members, overview, activity] = await Promise.all([
+      const [members, overview, activity, graphOverview] = await Promise.all([
         apiClient.workspaces.members(workspace!.id),
         apiClient.analytics.overview(workspace!.id),
         apiClient.activity.list(workspace!.id, { limit: 10 }),
+        fetchWorkspaceOverview(workspace!.id),
       ]);
-      const projectStatusCounts = overview.metrics.projectStatusCounts;
-      const taskStatusCounts = overview.metrics.taskStatusCounts;
-      const projectCount = projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
-      const taskCount = taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const projectStatusCounts = graphOverview.projectStatusCounts;
+      const taskStatusCounts = graphOverview.taskStatusCounts;
+      const projectCount = graphOverview.projectCount;
+      const taskCount = graphOverview.taskCount;
       const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
       const activeProjects = overview.metrics.activeProjects;
 
@@ -87,14 +88,7 @@ export default function ViewerDashboardPage() {
   if (!workspace) {
     return <div className="flex min-h-[60vh] items-center justify-center">Select a workspace to continue.</div>;
   }
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center" role="status">
-        <Spinner size="large" />
-        <span className="ml-2">Loading workspace overview…</span>
-      </div>
-    );
-  }
+  if (loading) return <DashboardLoadingSkeleton title="Preparing your read-only overview" />;
   if (error) {
     return <Alert severity="error">{error instanceof ApiClientError ? error.message : 'Unable to load dashboard data.'}</Alert>;
   }

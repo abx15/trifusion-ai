@@ -410,3 +410,39 @@ export const apiClient = {
     return result.data;
   },
 };
+
+ 
+export interface GraphQLWorkspaceOverview {
+  workspaceId: string;
+  workspaceName: string;
+  role: WorkspaceRole;
+  projectCount: number;
+  taskCount: number;
+  projectStatusCounts: Array<{ status: string; count: number }>;
+  taskStatusCounts: Array<{ status: string; count: number }>;
+  overdueTasks: number;
+  upcomingDeadlines: number;
+}
+
+export async function fetchWorkspaceOverview(workspaceId: string): Promise<GraphQLWorkspaceOverview> {
+  const result = await apiClient.graphql<{ workspaceOverview: GraphQLWorkspaceOverview }>(
+    `query WorkspaceOverview($workspaceId: String!) {
+      workspaceOverview(workspaceId: $workspaceId) {
+        workspaceId
+        workspaceName
+        role
+        projectCount
+        taskCount
+        projectStatusCounts { status count }
+        taskStatusCounts { status count }
+        overdueTasks
+        upcomingDeadlines
+      }
+    }`,
+    { workspaceId },
+  );
+  if (!result.workspaceOverview) {
+    throw new ApiClientError('GraphQL workspace overview returned no data', 502);
+  }
+  return result.workspaceOverview;
+}

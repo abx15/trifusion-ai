@@ -3,8 +3,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Box, Typography, Paper, Stack, Chip } from '@mui/material';
-import { KPICard, EmptyState, Table, Alert, Spinner } from '@trifusion/ui';
+import { KPICard, EmptyState, Table, Alert } from '@trifusion/ui';
 import { PlatformDashboardShell } from '../../components/platform-dashboard-shell';
+import { PlatformLoadingSkeleton } from '../../components/platform-loading-skeleton';
 import { usePlatformStaff } from '../../contexts/platform-staff-context';
 import { Ticket, Clipboard, User, AlertTriangle, Mail, Shield } from 'lucide-react';
 
@@ -15,7 +16,14 @@ async function fetchJson(path: string, init?: RequestInit) {
     headers: { Accept: 'application/json', ...(init?.headers || {}) },
     ...init,
   });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  if (!res.ok) {
+    const payload: unknown = await res.json().catch(() => null);
+    const message =
+      payload && typeof payload === 'object' && 'message' in payload
+        ? String(payload.message)
+        : `Platform API request failed (${res.status})`;
+    throw new Error(message);
+  }
   return res.json();
 }
 
@@ -135,14 +143,7 @@ export default function SupportDashboardPage() {
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center" role="status">
-        <Spinner size="large" />
-        <span className="ml-2">Loading support command center…</span>
-      </div>
-    );
-  }
+  if (loading) return <PlatformLoadingSkeleton title="Loading the support command center" />;
   if (error) {
     return (
       <Alert severity="error">

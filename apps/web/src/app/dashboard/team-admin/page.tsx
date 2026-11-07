@@ -12,12 +12,12 @@ import {
   EmptyState,
   Table,
   Alert,
-  Spinner,
 } from '@trifusion/ui';
 import { DashboardShell } from '../../../components/dashboard-shell';
+import { DashboardLoadingSkeleton } from '../../../components/dashboard-loading-skeleton';
 import { useAuth } from '../../../contexts/auth-context';
 import { useWorkspace } from '../../../contexts/workspace-context';
-import { apiClient, ApiClientError, type WorkspaceMember } from '../../../lib/api-client';
+import { apiClient, ApiClientError, fetchWorkspaceOverview, type WorkspaceMember } from '../../../lib/api-client';
 import { CUSTOMER_ROLE_CONFIGS } from '@trifusion/contracts';
 import { PieChart, Pie, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { FolderKanban, CheckSquare, Users as UsersIcon, Clock } from 'lucide-react';
@@ -57,14 +57,15 @@ export default function TeamAdminDashboardPage() {
   const statsQuery = useQuery<TeamStats>({
     queryKey: ['team-admin-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [membersResult, overview, activity] = await Promise.all([
+      const [membersResult, overview, activity, graphOverview] = await Promise.all([
         apiClient.workspaces.members(workspace!.id),
         apiClient.analytics.overview(workspace!.id),
         apiClient.activity.list(workspace!.id, { limit: 10 }),
+        fetchWorkspaceOverview(workspace!.id),
       ]);
-      const projectCount = overview.metrics.activeProjects;
-      const taskCount = overview.metrics.taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
-      const completedTasks = overview.metrics.taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
+      const projectCount = graphOverview.projectStatusCounts.filter((item) => item.status !== 'ARCHIVED').reduce((sum, item) => sum + item.count, 0);
+      const taskCount = graphOverview.taskCount;
+      const completedTasks = graphOverview.taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
 
       return {
         projectCount,
@@ -72,8 +73,8 @@ export default function TeamAdminDashboardPage() {
         memberCount: membersResult.filter((member) => member.role === 'MEMBER' || member.role === 'VIEWER').length,
         completedTasks,
         overdueTasks: overview.metrics.overdueTasks,
-        taskStatusCounts: overview.metrics.taskStatusCounts,
-        projectStatusCounts: overview.metrics.projectStatusCounts,
+        taskStatusCounts: graphOverview.taskStatusCounts,
+        projectStatusCounts: graphOverview.projectStatusCounts,
         recentActivity: activity.data,
         members: membersResult.filter((m) => m.role !== 'OWNER' && m.role !== 'TEAM_ADMIN'),
       };
@@ -87,14 +88,7 @@ export default function TeamAdminDashboardPage() {
   if (!workspace) {
     return <div className="flex min-h-[60vh] items-center justify-center">Select a workspace to continue.</div>;
   }
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center" role="status">
-        <Spinner size="large" />
-        <span className="ml-2">Loading team dashboard…</span>
-      </div>
-    );
-  }
+  if (loading) return <DashboardLoadingSkeleton title="Preparing your team overview" />;
   if (error) {
     return <Alert severity="error">{error instanceof ApiClientError ? error.message : 'Unable to load dashboard data.'}</Alert>;
   }
