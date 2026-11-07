@@ -20,15 +20,44 @@ export const AI_QUEUE = 'AI_QUEUE';
     {
       provide: AI_QUEUE,
       useFactory: async (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL') || 'redis://localhost:6379';
-        return new Bull('ai-jobs', redisUrl, {
+        const redisUrl = config.get<string>('REDIS_URL');
+        const logger = new Logger('AIQueue');
+
+        const queueOptions = {
           defaultJobOptions: {
             attempts: 3,
             backoff: { type: 'exponential', delay: 1000 },
             removeOnComplete: 100,
             removeOnFail: 50,
           },
+        };
+
+        // Redis is an optional infrastructure dependency until it is provisioned.
+        // Do not silently use an infinite localhost retry loop in production.
+        const queue = redisUrl
+          ? new Bull('ai-jobs', redisUrl, queueOptions)
+          : new Bull(
+              'ai-jobs',
+              {
+                host: '127.0.0.1',
+                port: 6379,
+                maxRetriesPerRequest: 1,
+                retryStrategy: () => null,
+              },
+              queueOptions,
+            );
+
+        queue.on('error', (error) => {
+          logger.warn(
+            `AI queue connection unavailable: ${error.message}. Configure REDIS_URL to enable background jobs.`,
+          );
         });
+
+        if (!redisUrl) {
+          logger.warn('REDIS_URL is not configured; background queue processing is unavailable.');
+        }
+
+        return queue;
       },
       inject: [ConfigService],
     },
@@ -152,8 +181,18 @@ export class JobsModule implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
-    await this.queue.isReady();
-    this.logger.log('AI job queue ready');
+    if (!process.env.REDIS_URL) {
+      this.logger.warn('Skipping AI queue readiness wait because REDIS_URL is not configured.');
+      return;
+    }
+
+    try {
+      await this.queue.isReady();
+      this.logger.log('AI job queue ready');
+    } catch (error) {
+      // Keep the core API available; platform health reports the queue as degraded.
+      this.logger.error('AI queue is unavailable; core API startup will continue.', error);
+    }
   }
 
   async onModuleDestroy() {
