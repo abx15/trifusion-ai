@@ -91,6 +91,38 @@ describe('AuthService', () => {
     ).rejects.toThrow('An account with this email address already exists');
   });
 
+  it('should reject registration when email delivery is not configured', async () => {
+    mockEmailService.isConfigured.mockReturnValueOnce(false);
+
+    await expect(
+      service.register({
+        email: 'new@example.com',
+        password: 'Password123!',
+        firstName: 'New',
+        lastName: 'User',
+      }),
+    ).rejects.toThrow('Email delivery is not configured');
+    expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('should send a password reset link without exposing account existence', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'user@example.com',
+      status: UserStatus.ACTIVE,
+    });
+    mockPrisma.passwordResetToken.create.mockResolvedValueOnce({ id: 'reset-1' });
+
+    const result = await service.forgotPassword({ email: ' USER@example.com ' });
+
+    expect(result.message).toContain('If the email is registered');
+    expect(mockEmailService.send).toHaveBeenCalledWith(
+      'user@example.com',
+      'Reset your TriFusion AI password',
+      expect.stringContaining('/reset-password?token='),
+    );
+  });
+
   it('should throw UnauthorizedException on invalid login', async () => {
     mockPrisma.user.findUnique.mockResolvedValueOnce(null);
     await expect(
