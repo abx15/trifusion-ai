@@ -102,8 +102,6 @@ export default function SupportDashboardPage() {
       };
     },
     enabled: hasAccess,
-      staff && ['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)
-    ),
   });
 
   if (!staff || !['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
