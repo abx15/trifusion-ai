@@ -34,7 +34,7 @@ interface AnalystStats {
   apiTrends: Array<{ name: string; requests: number; errors: number }>;
   usageDistribution: Array<{ name: string; value: number }>;
   performanceTrends: Array<{ name: string; avgResponse: number; p95: number }>;
-  resourceConsumption: Array<{ name: string; used: number; total: number }>;
+  resourceConsumption: Array<{ name: string; used: number; total: number | null }>;
   recentActivity: Array<{
     id: string;
     action: string;
@@ -80,7 +80,7 @@ export default function AnalystDashboardPage() {
       const resourceConsumption = (metrics.resourceConsumption ?? []).map((m: any) => ({
         name: m.name || 'Unknown',
         used: m.used ?? 0,
-        total: m.total ?? 100,
+        total: typeof m.total === 'number' ? m.total : null,
       }));
 
       return {
@@ -401,32 +401,21 @@ export default function AnalystDashboardPage() {
             stats.resourceConsumption.some((d) => d.used > 0) ? (
               <Box>
                 {stats.resourceConsumption.map((r) => {
-                  const pct = Math.min((r.used / Math.max(r.total, 1)) * 100, 100);
+                  const hasCapacity = typeof r.total === 'number' && r.total > 0;
+                  const pct = hasCapacity ? Math.min((r.used / r.total!) * 100, 100) : null;
                   return (
                     <Box key={r.name} className="py-2 border-b border-divider/50 last:border-0">
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">{r.name}</Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {r.used} / {r.total}
+                          {hasCapacity ? `${r.used} / ${r.total}` : `${r.used.toLocaleString()} recorded`}
                         </Typography>
                       </Box>
-                      <Box
-                        sx={{
-                          height: 8,
-                          backgroundColor: 'action.hover',
-                          borderRadius: 4,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            height: '100%',
-                            backgroundColor: 'primary.main',
-                            borderRadius: 4,
-                            width: `${pct}%`,
-                          }}
-                        />
-                      </Box>
+                      {pct !== null && (
+                        <Box sx={{ height: 8, backgroundColor: 'action.hover', borderRadius: 4, overflow: 'hidden' }}>
+                          <Box sx={{ height: '100%', backgroundColor: 'primary.main', borderRadius: 4, width: `${pct}%` }} />
+                        </Box>
+                      )}
                     </Box>
                   );
                 })}
