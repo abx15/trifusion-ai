@@ -54,7 +54,7 @@ TriFusion AI is a monorepo with four deployable services:
 | `AUTH_SECRET` | JWT signing secret (32+ chars in prod) | Yes | `your-32-char-secret-here` |
 | `AUTH_EXPIRES_IN` | Access token lifetime | No | `15m` |
 | `AUTH_REFRESH_EXPIRES_IN` | Refresh token lifetime | No | `7d` |
-| `WEB_URL` | Customer web origin | No | `https://app.trifusion.ai` |
+| `WEB_URL` | Production customer web origin used in password-reset links | Yes in production | `https://<customer-app>.vercel.app` |
 | `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | No | `https://app.trifusion.ai,https://admin.trifusion.ai` |
 | `REDIS_URL` | Redis connection for Bull v4 AI jobs; without it the AI queue/worker is disabled while the core API remains available | No | `redis://redis:6379` |
 | `AI_SERVICE_URL` | Django AI backend URL | No | `http://django:8000` |
