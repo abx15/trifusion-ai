@@ -83,9 +83,7 @@ export class AuthService {
   }
 
   private generateVerificationCode(): string {
-    const min = 100000;
-    const max = 999999;
-    return Math.floor(min + Math.random() * (max - min + 1)).toString();
+    return crypto.randomInt(100000, 1000000).toString();
   }
 
   private async createVerificationToken(userId: string, code: string) {
@@ -365,11 +363,20 @@ export class AuthService {
       throw new UnauthorizedException('User account is disabled');
     }
 
-    // Revoke used token for rotation security
-    await this.prisma.refreshToken.update({
-      where: { id: storedToken.id },
+    // Atomic compare-and-set prevents two concurrent requests from rotating
+    // the same refresh token successfully.
+    const revoked = await this.prisma.refreshToken.updateMany({
+      where: {
+        id: storedToken.id,
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
       data: { isRevoked: true },
     });
+
+    if (revoked.count !== 1) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
 
     // Generate new token pair
     const tokens = await this.generateTokens(storedToken.user.id, storedToken.user.email);
