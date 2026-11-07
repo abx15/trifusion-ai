@@ -267,6 +267,29 @@ export const apiClient = {
       }),
   },
 
+  analytics: {
+    overview: (workspaceId: string, query: Query = {}) =>
+      request<{
+        workspaceId: string;
+        workspaceName: string;
+        role: WorkspaceRole;
+        reportingPeriod: { start: string; end: string };
+        generatedAt: string;
+        dataFreshness: string;
+        metricVersion: string;
+        metrics: {
+          activeProjects: number;
+          projectStatusCounts: Array<{ status: string; count: number }>;
+          taskStatusCounts: Array<{ status: string; count: number }>;
+          overdueTasks: number;
+          upcomingDeadlines: number;
+          completionRate: number;
+          tasksCompletedThisWeek: number;
+          teamWorkload: Array<{ assigneeId: string; openTasks: number; weightedLoad: number }>;
+        };
+      }>(`${workspacePath(workspaceId, 'analytics/overview')}${queryString(query)}`),
+  },
+
   activity: {
     list: (workspaceId: string, query: Query = {}) =>
       request<Page<ActivityEvent>>(`${workspacePath(workspaceId, 'activity')}${queryString(query)}`),
