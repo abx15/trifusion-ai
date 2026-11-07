@@ -86,7 +86,7 @@ export default function MemberDashboardPage() {
         .filter((item) => ['TODO', 'IN_PROGRESS', 'REVIEW'].includes(item.status))
         .reduce((sum, item) => sum + item.count, 0);
       const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
-      const assignedProjects = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const assignedProjects = overview.metrics.assignedProjects;
 
       return {
         assignedTasks: taskStatusCounts.reduce((sum, item) => sum + item.count, 0),
@@ -133,7 +133,7 @@ export default function MemberDashboardPage() {
       ]}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
-        <KPICard title="My Assigned Tasks" value={stats.assignedTasks} trend={{ value: `${stats.pendingTasks} pending`, positive: stats.pendingTasks === 0 }} icon={<CheckSquare style={{ fontSize: 20, color: '#003F5C' }} />} />
+        <KPICard title="My Tasks (30d)" value={stats.assignedTasks} trend={{ value: `${stats.pendingTasks} pending`, positive: stats.pendingTasks === 0 }} icon={<CheckSquare style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Completed" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.assignedTasks, 1)) * 100)}% completion`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
         <KPICard title="Overdue" value={stats.overdueTasks} trend={{ value: stats.overdueTasks > 0 ? 'requires attention' : 'all on track', positive: stats.overdueTasks === 0 }} icon={<Clock style={{ fontSize: 20, color: '#FF6361' }} />} />
         <KPICard title="Upcoming Deadlines" value={stats.upcomingDeadlines} icon={<Activity style={{ fontSize: 20, color: '#FFA600' }} />} />
