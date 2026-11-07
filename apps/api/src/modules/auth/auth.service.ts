@@ -618,15 +618,12 @@ export class AuthService {
       where: { email: normalizedEmail },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    const genericResponse = {
+      message: 'If the email is registered and still unverified, a verification code has been sent.',
+    };
 
-    if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('User account is disabled');
-    }
-    if (user.isEmailVerified) {
-      throw new BadRequestException('Email is already verified');
+    if (!user || user.status !== UserStatus.ACTIVE || user.isEmailVerified) {
+      return genericResponse;
     }
 
     await this.invalidateExistingVerificationTokens(user.id);
@@ -646,9 +643,7 @@ export class AuthService {
       metadata: { email: user.email, emailVerified: false, action: 'resend_verification' },
     });
 
-    return {
-      message: 'Verification code resent. Please check your email.',
-    };
+    return genericResponse;
   }
 
   async acceptInvitation(token: string, userId: string, meta?: RequestMeta) {
