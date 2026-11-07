@@ -71,7 +71,7 @@ export default function OwnerDashboardPage() {
       return {
         projectCount,
         taskCount,
-        memberCount: membersResult.length,
+        memberCount: membersResult.filter((member) => member.role !== 'OWNER').length,
         pendingInvitations: invitationsResult.filter((i) => i.status === 'PENDING').length,
         overdueTasks: overview.metrics.overdueTasks,
         upcomingDeadlines: overview.metrics.upcomingDeadlines,
