@@ -19,43 +19,27 @@ export const AI_QUEUE = 'AI_QUEUE';
     JobsService,
     {
       provide: AI_QUEUE,
-      useFactory: async (config: ConfigService) => {
+      useFactory: (config: ConfigService): Bull.Queue | null => {
         const redisUrl = config.get<string>('REDIS_URL');
         const logger = new Logger('AIQueue');
 
-        const queueOptions = {
+        if (!redisUrl) {
+          logger.warn('REDIS_URL is not configured; background AI jobs are disabled.');
+          return null;
+        }
+
+        const queue = new Bull('ai-jobs', redisUrl, {
           defaultJobOptions: {
             attempts: 3,
             backoff: { type: 'exponential', delay: 1000 },
             removeOnComplete: 100,
             removeOnFail: 50,
           },
-        };
-
-        // Redis is an optional infrastructure dependency until it is provisioned.
-        // Do not silently use an infinite localhost retry loop in production.
-        const queue = redisUrl
-          ? new Bull('ai-jobs', redisUrl, queueOptions)
-          : new Bull(
-              'ai-jobs',
-              {
-                host: '127.0.0.1',
-                port: 6379,
-                maxRetriesPerRequest: 1,
-                retryStrategy: () => null,
-              },
-              queueOptions,
-            );
-
-        queue.on('error', (error) => {
-          logger.warn(
-            `AI queue connection unavailable: ${error.message}. Configure REDIS_URL to enable background jobs.`,
-          );
         });
 
-        if (!redisUrl) {
-          logger.warn('REDIS_URL is not configured; background queue processing is unavailable.');
-        }
+        queue.on('error', (error) => {
+          logger.warn(`AI queue connection unavailable: ${error.message}`);
+        });
 
         return queue;
       },
@@ -64,12 +48,17 @@ export const AI_QUEUE = 'AI_QUEUE';
     {
       provide: 'AI_WORKER',
       useFactory: async (
-        queue: Bull.Queue,
+        queue: Bull.Queue | null,
         aiService: AiService,
         jobsService: JobsService,
         auditService: AuditLogService,
       ) => {
         const logger = new Logger('AIWorker');
+
+        if (!queue) {
+          logger.warn('AI worker is not started because REDIS_URL is not configured.');
+          return null;
+        }
 
         queue.process(
           'ai-processor',
@@ -177,12 +166,12 @@ export class JobsModule implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(JobsModule.name);
 
   constructor(
-    @Inject(AI_QUEUE) private readonly queue: Bull.Queue,
+    @Inject(AI_QUEUE) private readonly queue: Bull.Queue | null,
   ) {}
 
   async onModuleInit() {
-    if (!process.env.REDIS_URL) {
-      this.logger.warn('Skipping AI queue readiness wait because REDIS_URL is not configured.');
+    if (!this.queue) {
+      this.logger.warn('Skipping AI queue readiness because REDIS_URL is not configured.');
       return;
     }
 
@@ -196,6 +185,7 @@ export class JobsModule implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
+    if (!this.queue) return;
     await this.queue.close();
     this.logger.log('AI job queue closed');
   }

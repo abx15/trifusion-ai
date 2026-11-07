@@ -47,11 +47,12 @@ interface PlatformAdminStats {
 export default function PlatformAdminDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
 
+  const hasAccess = Boolean(staff && ['PLATFORM_ADMIN', 'SUPERADMIN'].includes(staff.role));
 
   const statsQuery = useQuery<PlatformAdminStats>({
-    queryKey: ['platform-admin-dashboard-stats', staff?.id ?? 'anonymous'],
+    queryKey: ['platform-admin-dashboard-stats', staff?.id],
     queryFn: async () => {
-      if (!staff) throw new Error('Platform staff session is unavailable.');
+      if (!staff) throw new Error('Platform staff access is required.');
       const [metrics, workspaces, users, auditLogs] = await Promise.all([
         fetchJson('/platform/v1/metrics'),
         fetchJson('/platform/v1/workspaces?limit=10'),
@@ -77,7 +78,7 @@ export default function PlatformAdminDashboardPage() {
           status: u.status,
           createdAt: u.createdAt,
         })),
-        recentActivity: (auditLogs ?? []).map((log: any) => ({
+        recentActivity: (auditLogs.logs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
           targetType: log.targetType,
@@ -86,7 +87,7 @@ export default function PlatformAdminDashboardPage() {
         })),
       };
     },
-    enabled: Boolean(staff && ['PLATFORM_ADMIN', 'SUPERADMIN'].includes(staff.role)),
+    enabled: hasAccess,
   });
 
   if (!staff || !['PLATFORM_ADMIN', 'SUPERADMIN'].includes(staff.role)) {
@@ -109,6 +110,8 @@ export default function PlatformAdminDashboardPage() {
       </section>
     );
   }
+
+
 
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
@@ -154,7 +157,7 @@ export default function PlatformAdminDashboardPage() {
       ]}
       breadcrumbs={[{ label: 'Platform Operations', href: '/admin' }, { label: 'Overview' }]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard
           title="Active Tenants"
           value={stats.activeTenants}
@@ -183,7 +186,7 @@ export default function PlatformAdminDashboardPage() {
         />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
@@ -253,7 +256,7 @@ export default function PlatformAdminDashboardPage() {
         </Paper>
       </Box>
 
-      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>

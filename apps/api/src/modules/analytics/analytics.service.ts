@@ -41,6 +41,17 @@ export class AnalyticsService {
     private readonly policyService: PolicyService,
   ) {}
 
+  private async scopeMemberFilters(
+    workspaceId: string,
+    actorId: string,
+    filters: AnalyticsFilters,
+  ): Promise<AnalyticsFilters> {
+    const context = await this.policyService.getWorkspaceContext(actorId, workspaceId);
+    return context.role === 'MEMBER'
+      ? { ...filters, assigneeId: actorId }
+      : filters;
+  }
+
   private normalizeDateRange(filters: AnalyticsFilters): AnalyticsDateRange {
     const start = parseDate(filters.startDate, 'startDate');
     const end = parseDate(filters.endDate, 'endDate');
@@ -156,9 +167,9 @@ export class AnalyticsService {
   }
 
   async getTaskAnalytics(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
-    const where = this.buildTaskWhere(workspaceId, range, filters);
+    const scopedFilters = await this.scopeMemberFilters(workspaceId, actorId, filters);
+    const range = this.normalizeDateRange(scopedFilters);
+    const where = this.buildTaskWhere(workspaceId, range, scopedFilters);
 
     const [totals, byPriority] = await Promise.all([
       this.prisma.task.groupBy({ by: ['status'], where, _count: { _all: true } }),
@@ -196,14 +207,14 @@ export class AnalyticsService {
   }
 
   async getTeamWorkload(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
+    const scopedFilters = await this.scopeMemberFilters(workspaceId, actorId, filters);
+    const range = this.normalizeDateRange(scopedFilters);
     const where: Prisma.TaskWhereInput = {
       workspaceId,
       deletedAt: null,
-      ...(filters.projectId ? { projectId: filters.projectId } : {}),
-      ...(filters.assigneeId ? { assigneeId: filters.assigneeId } : {}),
-      ...(filters.taskStatus ? { status: filters.taskStatus } : {}),
+      ...(scopedFilters.projectId ? { projectId: scopedFilters.projectId } : {}),
+      ...(scopedFilters.assigneeId ? { assigneeId: scopedFilters.assigneeId } : {}),
+      ...(scopedFilters.taskStatus ? { status: scopedFilters.taskStatus } : {}),
       status: { not: TaskStatus.DONE },
       createdAt: { gte: range.start, lte: range.end },
     };
@@ -230,14 +241,14 @@ export class AnalyticsService {
   }
 
   async getClientActivity(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
+    const scopedFilters = await this.scopeMemberFilters(workspaceId, actorId, filters);
+    const range = this.normalizeDateRange(scopedFilters);
     const projectIds = await this.prisma.project.findMany({
       where: {
         workspaceId,
         deletedAt: null,
-        ...(filters.projectId ? { id: filters.projectId } : {}),
-        ...(filters.projectStatus ? { status: filters.projectStatus } : {}),
+        ...(scopedFilters.projectId ? { id: scopedFilters.projectId } : {}),
+        ...(scopedFilters.projectStatus ? { status: scopedFilters.projectStatus } : {}),
         createdAt: { gte: range.start, lte: range.end },
       },
       select: { id: true, clientId: true },
@@ -247,8 +258,8 @@ export class AnalyticsService {
       where: {
         workspaceId,
         deletedAt: null,
-        ...(filters.assigneeId ? { assigneeId: filters.assigneeId } : {}),
-        ...(filters.taskStatus ? { status: filters.taskStatus } : {}),
+        ...(scopedFilters.assigneeId ? { assigneeId: scopedFilters.assigneeId } : {}),
+        ...(scopedFilters.taskStatus ? { status: scopedFilters.taskStatus } : {}),
         createdAt: { gte: range.start, lte: range.end },
       },
       select: { projectId: true },
@@ -273,10 +284,10 @@ export class AnalyticsService {
   }
 
   async getTrendMetrics(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
+    const scopedFilters = await this.scopeMemberFilters(workspaceId, actorId, filters);
+    const range = this.normalizeDateRange(scopedFilters);
     const rows = await this.prisma.task.findMany({
-      where: this.buildTaskWhere(workspaceId, range, filters),
+      where: this.buildTaskWhere(workspaceId, range, scopedFilters),
       select: { createdAt: true, status: true },
     });
 

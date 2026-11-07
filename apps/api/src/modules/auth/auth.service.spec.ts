@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogService } from '../audit/audit.service';
+import { EmailService } from '../email/email.service';
 import { UserStatus } from '@prisma/client';
 
 describe('AuthService', () => {
@@ -37,6 +38,10 @@ describe('AuthService', () => {
     log: jest.fn().mockResolvedValue(undefined),
     findLogs: jest.fn().mockResolvedValue({ total: 0, logs: [] }),
   };
+  const mockEmailService = {
+    isConfigured: jest.fn().mockReturnValue(true),
+    send: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -60,6 +65,10 @@ describe('AuthService', () => {
           provide: AuditLogService,
           useValue: mockAuditLogService,
         },
+        {
+          provide: EmailService,
+          useValue: mockEmailService,
+        },
       ],
     }).compile();
 
@@ -80,6 +89,38 @@ describe('AuthService', () => {
         lastName: 'User',
       }),
     ).rejects.toThrow('An account with this email address already exists');
+  });
+
+  it('should reject registration when email delivery is not configured', async () => {
+    mockEmailService.isConfigured.mockReturnValueOnce(false);
+
+    await expect(
+      service.register({
+        email: 'new@example.com',
+        password: 'Password123!',
+        firstName: 'New',
+        lastName: 'User',
+      }),
+    ).rejects.toThrow('Email delivery is not configured');
+    expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('should send a password reset link without exposing account existence', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      id: 'user-1',
+      email: 'user@example.com',
+      status: UserStatus.ACTIVE,
+    });
+    mockPrisma.passwordResetToken.create.mockResolvedValueOnce({ id: 'reset-1' });
+
+    const result = await service.forgotPassword({ email: ' USER@example.com ' });
+
+    expect(result.message).toContain('If the email is registered');
+    expect(mockEmailService.send).toHaveBeenCalledWith(
+      'user@example.com',
+      'Reset your TriFusion AI password',
+      expect.stringContaining('/reset-password?token='),
+    );
   });
 
   it('should throw UnauthorizedException on invalid login', async () => {
@@ -108,14 +149,19 @@ describe('AuthService', () => {
       .mockResolvedValueOnce(storedToken)
       .mockResolvedValueOnce({ ...storedToken, isRevoked: true });
 
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 1 });
     const rotatedTokens = await service.refreshToken({ refreshToken: 'refresh-token' });
 
     expect(rotatedTokens).toEqual({
       accessToken: 'access-token',
       refreshToken: expect.any(String),
     });
-    expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith({
-      where: { id: 'refresh-1' },
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'refresh-1',
+        isRevoked: false,
+        expiresAt: { gt: expect.any(Date) },
+      },
       data: { isRevoked: true },
     });
     expect(mockPrisma.refreshToken.create).toHaveBeenCalledTimes(1);
@@ -123,7 +169,22 @@ describe('AuthService', () => {
     await expect(
       service.refreshToken({ refreshToken: 'refresh-token' }),
     ).rejects.toThrow('Invalid or expired refresh token');
-    expect(mockPrisma.refreshToken.update).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject concurrent refresh-token reuse when atomic revocation loses the race', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
+      id: 'refresh-race',
+      isRevoked: false,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: 'user-1', email: 'user@example.com', status: UserStatus.ACTIVE },
+    });
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      service.refreshToken({ refreshToken: 'refresh-token' }),
+    ).rejects.toThrow('Invalid or expired refresh token');
+    expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
   it('should throw BadRequestException on invalid reset token', async () => {

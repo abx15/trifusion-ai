@@ -131,9 +131,19 @@ export const apiClient = {
         body: JSON.stringify(data),
       }),
     register: (data: RegisterRequest) =>
-      request<{ user: AuthUserResponse }>('auth/register', {
+      request<{ status: string; email: string; message: string }>('auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    verifyEmail: (data: { email: string; code: string }) =>
+      request<{ status: string; email: string; message: string }>('auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    resendVerification: (email: string) =>
+      request<{ message: string }>('auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
       }),
     logout: () =>
       request<{ success: boolean; message: string }>('auth/logout', {
@@ -255,6 +265,29 @@ export const apiClient = {
       request<Task>(workspacePath(workspaceId, `tasks/${encodeURIComponent(id)}/archive`), {
         method: 'DELETE',
       }),
+  },
+
+  analytics: {
+    overview: (workspaceId: string, query: Query = {}) =>
+      request<{
+        workspaceId: string;
+        workspaceName: string;
+        role: WorkspaceRole;
+        reportingPeriod: { start: string; end: string };
+        generatedAt: string;
+        dataFreshness: string;
+        metricVersion: string;
+        metrics: {
+          activeProjects: number;
+          projectStatusCounts: Array<{ status: string; count: number }>;
+          taskStatusCounts: Array<{ status: string; count: number }>;
+          overdueTasks: number;
+          upcomingDeadlines: number;
+          completionRate: number;
+          tasksCompletedThisWeek: number;
+          teamWorkload: Array<{ assigneeId: string; openTasks: number; weightedLoad: number }>;
+        };
+      }>(`${workspacePath(workspaceId, 'analytics/overview')}${queryString(query)}`),
   },
 
   activity: {

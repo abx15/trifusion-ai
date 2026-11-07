@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -83,9 +84,7 @@ export class AuthService {
   }
 
   private generateVerificationCode(): string {
-    const min = 100000;
-    const max = 999999;
-    return Math.floor(min + Math.random() * (max - min + 1)).toString();
+    return crypto.randomInt(100000, 1000000).toString();
   }
 
   private async createVerificationToken(userId: string, code: string) {
@@ -116,14 +115,14 @@ export class AuthService {
   }
 
   private async sendVerificationEmail(email: string, code: string) {
-    const subject = 'Verify your email — TriFusion AI';
-    const text = `Your verification code is ${code}. It expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
-
     if (!this.emailService.isConfigured()) {
-      this.logger.warn('EmailService is not configured; verification code will not be delivered.');
-      return;
+      throw new ServiceUnavailableException(
+        'Email delivery is not configured. Contact the administrator before registering or requesting a verification code.',
+      );
     }
 
+    const subject = 'Verify your email — TriFusion AI';
+    const text = `Your verification code is ${code}. It expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
     await this.emailService.send(email, subject, text);
   }
 
@@ -172,6 +171,12 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, meta?: RequestMeta, _res?: Response) {
+    if (!this.emailService.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'Email delivery is not configured. Registration is temporarily unavailable.',
+      );
+    }
+
     const normalizedEmail = dto.email.trim().toLowerCase();
 
     const existingUser = await this.prisma.user.findUnique({
@@ -365,11 +370,20 @@ export class AuthService {
       throw new UnauthorizedException('User account is disabled');
     }
 
-    // Revoke used token for rotation security
-    await this.prisma.refreshToken.update({
-      where: { id: storedToken.id },
+    // Atomic compare-and-set prevents two concurrent requests from rotating
+    // the same refresh token successfully.
+    const revoked = await this.prisma.refreshToken.updateMany({
+      where: {
+        id: storedToken.id,
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
       data: { isRevoked: true },
     });
+
+    if (revoked.count !== 1) {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
 
     // Generate new token pair
     const tokens = await this.generateTokens(storedToken.user.id, storedToken.user.email);
@@ -413,6 +427,10 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto, meta?: RequestMeta) {
+    if (!this.emailService.isConfigured()) {
+      throw new ServiceUnavailableException('Email delivery is not configured.');
+    }
+
     const normalizedEmail = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -430,6 +448,22 @@ export class AuthService {
           expiresAt,
         },
       });
+
+      const webUrl = process.env.WEB_URL || 'http://localhost:3000';
+      const resetUrl = new URL('/reset-password', webUrl);
+      resetUrl.searchParams.set('token', resetToken);
+      try {
+        await this.emailService.send(
+          user.email,
+          'Reset your TriFusion AI password',
+          `We received a request to reset your password. Use this link within one hour: ${resetUrl.toString()} If you did not request this, you can ignore this email.`,
+        );
+      } catch (error) {
+        this.logger.error(
+          'Password reset email delivery failed.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
 
       await this.auditLogService.log({
         actorId: user.id,
@@ -504,6 +538,9 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('User account is disabled');
+    }
 
     if (user.isEmailVerified) {
       const tokens = await this.generateTokens(user.id, user.email);
@@ -571,6 +608,10 @@ export class AuthService {
   }
 
   async resendVerification(dto: ResendVerificationDto, meta?: RequestMeta) {
+    if (!this.emailService.isConfigured()) {
+      throw new ServiceUnavailableException('Email delivery is not configured.');
+    }
+
     const normalizedEmail = dto.email.trim().toLowerCase();
 
     const user = await this.prisma.user.findUnique({
@@ -581,6 +622,9 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('User account is disabled');
+    }
     if (user.isEmailVerified) {
       throw new BadRequestException('Email is already verified');
     }

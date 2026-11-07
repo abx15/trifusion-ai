@@ -279,8 +279,8 @@ export class PlatformHealthService {
         value: row._count._all,
       })),
       resourceConsumption: [
-        { name: 'Files', used: storage._count._all, total: storage._count._all },
-        { name: 'Storage bytes', used: storage._sum.size ?? 0, total: storage._sum.size ?? 0 },
+        { name: 'Files stored', used: storage._count._all, total: null },
+        { name: 'Storage bytes', used: storage._sum.size ?? 0, total: null },
       ],
       apiTrends: [],
       performanceTrends: [],

@@ -67,7 +67,8 @@ export class PlatformController {
   // ============================================
 
   @Get('me')
-  @RequirePlatformRole(PlatformStaffRoleType.ANALYST)
+  // Every active platform staff role needs to resolve its own identity;
+  // role-specific permissions are enforced on the protected endpoints.
   @ApiOperation({ summary: 'Inspect active platform staff context' })
   @ApiResponse({ status: 200, description: 'Staff credentials and role' })
   @ApiResponse({ status: 403, description: 'Forbidden - not platform staff' })

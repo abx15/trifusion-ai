@@ -5,7 +5,8 @@ import { PlatformRolesGuard } from './platform-roles.guard';
 import { JwtStrategy } from '../strategies/jwt.strategy';
 
 import { ConfigService } from '@nestjs/config';
-import { WorkspaceRole, UserStatus } from "@prisma/client";
+import { WorkspaceRole, UserStatus, PlatformStaffRoleType } from "@prisma/client";
+import { PLATFORM_ROLES_KEY } from '../decorators/authorization.decorators';
 import { runSeed } from '../../../../../../database/seeds/seed';
 
 describe('Phase 2 Mandatory Security Suites', () => {
@@ -188,6 +189,31 @@ describe('Phase 2 Mandatory Security Suites', () => {
       const ctx = createMockExecutionContext(req);
       await expect(platformRolesGuard.canActivate(ctx)).rejects.toThrow(
         'Platform staff access required. Customer accounts cannot access platform controls.',
+      );
+    });
+
+    it('should deny ANALYST access to support-only endpoints despite higher hierarchy rank', async () => {
+      const req = {
+        user: { id: 'analyst-id', email: 'analyst@example.com' },
+      };
+      const handler = () => undefined;
+      Reflect.defineMetadata(
+        PLATFORM_ROLES_KEY,
+        [
+          PlatformStaffRoleType.SUPPORT_AGENT,
+          PlatformStaffRoleType.PLATFORM_ADMIN,
+          PlatformStaffRoleType.SUPERADMIN,
+        ],
+        handler,
+      );
+      mockPolicyService.getPlatformStaffContext.mockResolvedValueOnce({
+        userId: 'analyst-id',
+        role: PlatformStaffRoleType.ANALYST,
+      });
+
+      const ctx = createMockExecutionContext(req, handler);
+      await expect(platformRolesGuard.canActivate(ctx)).rejects.toThrow(
+        'This endpoint is not available to platform role: ANALYST',
       );
     });
 

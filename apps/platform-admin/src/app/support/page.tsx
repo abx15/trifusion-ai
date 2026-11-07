@@ -51,15 +51,16 @@ export default function SupportDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
   const [viewFilter, setViewFilter] = useState<'all' | 'assigned'>('all');
 
+  const hasAccess = Boolean(staff && ['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role));
 
   const statsQuery = useQuery<SupportStats>({
-    queryKey: ['support-dashboard-stats', staff?.id ?? 'anonymous', viewFilter],
+    queryKey: ['support-dashboard-stats', staff?.id, viewFilter],
     queryFn: async () => {
-      if (!staff) throw new Error('Platform staff session is unavailable.');
+      if (!staff) throw new Error('Platform staff access is required.');
       const [tickets, assignedTicketsResponse] = await Promise.all([
         fetchJson('/platform/v1/support/tickets?limit=20'),
         fetchJson(
-          `/platform/v1/support/tickets?limit=1&assigneeId=${encodeURIComponent(staff?.id ?? 'anonymous')}`
+          `/platform/v1/support/tickets?limit=1&assigneeId=${encodeURIComponent(staff?.id)}`
         ),
       ]);
       const sessions = await fetchJson('/platform/v1/support/sessions?limit=20');
@@ -100,9 +101,7 @@ export default function SupportDashboardPage() {
         })),
       };
     },
-    enabled: Boolean(
-      staff && ['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)
-    ),
+    enabled: hasAccess,
   });
 
   if (!staff || !['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
@@ -126,6 +125,8 @@ export default function SupportDashboardPage() {
     );
   }
 
+
+
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
 
@@ -148,7 +149,7 @@ export default function SupportDashboardPage() {
   const stats = statsQuery.data!;
   const ticketsToShow =
     viewFilter === 'assigned'
-      ? stats.recentTickets.filter((t) => t.assigneeId === staff?.id ?? 'anonymous')
+      ? stats.recentTickets.filter((t) => t.assigneeId === staff?.id)
       : stats.recentTickets;
 
   return (
@@ -227,7 +228,7 @@ export default function SupportDashboardPage() {
         { label: 'Overview' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard
           title="Open Tickets"
           value={stats.openTickets}
@@ -258,7 +259,7 @@ export default function SupportDashboardPage() {
         />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Box
@@ -297,7 +298,7 @@ export default function SupportDashboardPage() {
                   status: t.status.replaceAll('_', ' '),
                   priority: t.priority,
                   assignee:
-                    t.assigneeId === staff?.id ?? 'anonymous'
+                    t.assigneeId === staff?.id
                       ? 'Me (you)'
                       : t.assigneeId
                         ? 'Assigned'
@@ -338,7 +339,7 @@ export default function SupportDashboardPage() {
         </Paper>
       </Box>
 
-      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             SLA & Resolution

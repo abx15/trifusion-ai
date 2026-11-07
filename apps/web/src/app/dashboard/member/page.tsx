@@ -64,35 +64,29 @@ export default function MemberDashboardPage() {
   const statsQuery = useQuery<MemberStats>({
     queryKey: ['member-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const overview = await apiClient.graphql<{
-        workspaceOverview: {
-          projectCount: number;
-          taskCount: number;
-          overdueTasks: number;
-          upcomingDeadlines: number;
-          taskStatusCounts: Array<{ status: string; count: number }>;
-        };
-        tasks: { data: Array<{ id: string; title: string; status: string; priority: string; dueDate: string | null; project: { id: string; name: string } | null }> };
-        recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-      }>('workspaceOverview', {
-        workspaceId: workspace!.id,
-        filters: { assigneeId: user?.id },
-      });
-
-      const assignedTasks = overview.tasks.data;
-      const pendingTasks = assignedTasks.filter((t) => t.status === 'TODO' || t.status === 'IN_PROGRESS' || t.status === 'REVIEW').length;
-      const completedTasks = assignedTasks.filter((t) => t.status === 'DONE').length;
+      const [overview, tasks, activity] = await Promise.all([
+        apiClient.analytics.overview(workspace!.id, { assigneeId: user?.id }),
+        apiClient.tasks.list(workspace!.id, { limit: 50, assigneeId: user?.id }),
+        apiClient.activity.list(workspace!.id, { limit: 10 }),
+      ]);
+      const taskStatusCounts = overview.metrics.taskStatusCounts;
+      const assignedTasks = tasks.data;
+      const pendingTasks = taskStatusCounts
+        .filter((item) => ['TODO', 'IN_PROGRESS', 'REVIEW'].includes(item.status))
+        .reduce((sum, item) => sum + item.count, 0);
+      const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
+      const assignedProjects = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
 
       return {
-        assignedTasks: assignedTasks.length,
+        assignedTasks: taskStatusCounts.reduce((sum, item) => sum + item.count, 0),
         pendingTasks,
         completedTasks,
-        overdueTasks: overview.workspaceOverview.overdueTasks,
-        upcomingDeadlines: overview.workspaceOverview.upcomingDeadlines,
-        assignedProjects: overview.workspaceOverview.projectCount,
-        taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
+        overdueTasks: overview.metrics.overdueTasks,
+        upcomingDeadlines: overview.metrics.upcomingDeadlines,
+        assignedProjects,
+        taskStatusCounts,
         recentTasks: assignedTasks,
-        recentActivity: overview.recentActivity.data,
+        recentActivity: activity.data,
       };
     },
     enabled: Boolean(workspace && Boolean(user?.id)),
@@ -127,14 +121,14 @@ export default function MemberDashboardPage() {
         { label: 'My Dashboard' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard title="My Assigned Tasks" value={stats.assignedTasks} trend={{ value: `${stats.pendingTasks} pending`, positive: stats.pendingTasks === 0 }} icon={<CheckSquare style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Completed" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.assignedTasks, 1)) * 100)}% completion`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
         <KPICard title="Overdue" value={stats.overdueTasks} trend={{ value: stats.overdueTasks > 0 ? 'requires attention' : 'all on track', positive: stats.overdueTasks === 0 }} icon={<Clock style={{ fontSize: 20, color: '#FF6361' }} />} />
         <KPICard title="Upcoming Deadlines" value={stats.upcomingDeadlines} icon={<Activity style={{ fontSize: 20, color: '#FFA600' }} />} />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
@@ -188,7 +182,7 @@ export default function MemberDashboardPage() {
         </Paper>
       </Box>
 
-      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
