@@ -64,6 +64,21 @@ describe('AnalyticsService role scoping', () => {
     }
   });
 
+  it('scopes member project analytics to projects with their assigned tasks', async () => {
+    policy.getWorkspaceContext.mockResolvedValue({ role: 'MEMBER' });
+
+    await service.getProjectAnalytics('workspace-1', 'member-1');
+
+    expect(prisma.project.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: 'workspace-1',
+          tasks: { some: { assigneeId: 'member-1', deletedAt: null } },
+        }),
+      }),
+    );
+  });
+
   it('preserves workload status filters while excluding completed tasks', async () => {
     policy.getWorkspaceContext.mockResolvedValue({ role: 'OWNER' });
 
