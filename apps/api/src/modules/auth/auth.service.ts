@@ -475,7 +475,7 @@ export class AuthService {
         userAgent: meta?.userAgent,
       });
 
-      this.logger.log(`Password reset requested for user: ${user.email}`);
+      this.logger.log('Password reset request processed.');
     }
 
     // Always return constant message to prevent account existence enumeration
