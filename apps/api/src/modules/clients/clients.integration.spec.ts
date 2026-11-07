@@ -39,7 +39,7 @@ describe('Phase 3 Integration - Clients CRUD', () => {
       data: {
         email: `owner-int-${Date.now()}@test.dev`,
         passwordHash,
-        status: UserStatus.ACTIVE,
+        status: UserStatus.ACTIVE, isEmailVerified: true,
       },
     });
     ownerUserId = ownerUser.id;
@@ -48,7 +48,7 @@ describe('Phase 3 Integration - Clients CRUD', () => {
       data: {
         email: `member-int-${Date.now()}@test.dev`,
         passwordHash,
-        status: UserStatus.ACTIVE,
+        status: UserStatus.ACTIVE, isEmailVerified: true,
       },
     });
     memberUserId = memberUser.id;
@@ -57,7 +57,7 @@ describe('Phase 3 Integration - Clients CRUD', () => {
       data: {
         email: `viewer-int-${Date.now()}@test.dev`,
         passwordHash,
-        status: UserStatus.ACTIVE,
+        status: UserStatus.ACTIVE, isEmailVerified: true,
       },
     });
     viewerUserId = viewerUser.id;
@@ -224,7 +224,7 @@ describe('Phase 3 Integration - Clients CRUD', () => {
       data: {
         email: `admin-int-${Date.now()}@test.dev`,
         passwordHash: await bcrypt.hash('Password123!', 12),
-        status: UserStatus.ACTIVE,
+        status: UserStatus.ACTIVE, isEmailVerified: true,
       },
     });
     const adminToken = await getAuthToken(app, adminUser.email, 'Password123!');
