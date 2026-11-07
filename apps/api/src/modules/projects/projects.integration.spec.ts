@@ -43,17 +43,32 @@ describe('Phase 3 Integration - Projects and Tasks', () => {
     const passwordHash = await bcrypt.hash('Password123!', 12);
 
     const ownerUser = await prisma.user.create({
-      data: { email: `pt-owner-${Date.now()}@test.dev`, passwordHash, status: UserStatus.ACTIVE },
+      data: {
+        email: `pt-owner-${Date.now()}@test.dev`,
+        passwordHash,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+      },
     });
     ownerUserId = ownerUser.id;
 
     const memberUser = await prisma.user.create({
-      data: { email: `pt-member-${Date.now()}@test.dev`, passwordHash, status: UserStatus.ACTIVE },
+      data: {
+        email: `pt-member-${Date.now()}@test.dev`,
+        passwordHash,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+      },
     });
     memberUserId = memberUser.id;
 
     const viewerUser = await prisma.user.create({
-      data: { email: `pt-viewer-${Date.now()}@test.dev`, passwordHash, status: UserStatus.ACTIVE },
+      data: {
+        email: `pt-viewer-${Date.now()}@test.dev`,
+        passwordHash,
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+      },
     });
     viewerUserId = viewerUser.id;
 
@@ -189,7 +204,12 @@ describe('Phase 3 Integration - Projects and Tasks', () => {
 
   it('should reject task with assignee not in workspace', async () => {
     const otherUser = await prisma.user.create({
-      data: { email: `pt-outsider-${Date.now()}@test.dev`, passwordHash: await bcrypt.hash('Password123!', 12), status: UserStatus.ACTIVE },
+      data: {
+        email: `pt-outsider-${Date.now()}@test.dev`,
+        passwordHash: await bcrypt.hash('Password123!', 12),
+        status: UserStatus.ACTIVE,
+        isEmailVerified: true,
+      },
     });
 
     const projectRes = await request(app.getHttpServer())
