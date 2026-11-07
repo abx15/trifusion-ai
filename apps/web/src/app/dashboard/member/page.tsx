@@ -78,7 +78,7 @@ export default function MemberDashboardPage() {
       const assignedProjects = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
 
       return {
-        assignedTasks: tasks.total,
+        assignedTasks: taskStatusCounts.reduce((sum, item) => sum + item.count, 0),
         pendingTasks,
         completedTasks,
         overdueTasks: overview.metrics.overdueTasks,
