@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogService } from '../audit/audit.service';
+import { EmailService } from '../email/email.service';
 import { UserStatus } from '@prisma/client';
 
 describe('AuthService', () => {
@@ -37,6 +38,10 @@ describe('AuthService', () => {
     log: jest.fn().mockResolvedValue(undefined),
     findLogs: jest.fn().mockResolvedValue({ total: 0, logs: [] }),
   };
+  const mockEmailService = {
+    isConfigured: jest.fn().mockReturnValue(true),
+    send: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -59,6 +64,10 @@ describe('AuthService', () => {
         {
           provide: AuditLogService,
           useValue: mockAuditLogService,
+        },
+        {
+          provide: EmailService,
+          useValue: mockEmailService,
         },
       ],
     }).compile();
