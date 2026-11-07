@@ -110,14 +110,14 @@ export default function ViewerDashboardPage() {
         { label: 'Overview' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard title="Active Projects" value={stats.activeProjects} icon={<FolderKanban style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Total Tasks" value={stats.taskCount} icon={<CheckSquare style={{ fontSize: 20, color: '#58508D' }} />} />
         <KPICard title="Completed Tasks" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.taskCount, 1)) * 100)}%`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
         <KPICard title="Team Members" value={stats.memberCount} subtitle="Read-only access" icon={<UsersIcon style={{ fontSize: 20, color: '#64748B' }} />} />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
