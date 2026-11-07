@@ -91,6 +91,17 @@ describe('AuthService', () => {
     ).rejects.toThrow('An account with this email address already exists');
   });
 
+  it('does not reveal whether an email is registered during verification resend', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+
+    const result = await service.resendVerification({ email: 'unknown@example.com' });
+
+    expect(result.message).toContain('If the email is registered');
+    expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+      where: { email: 'unknown@example.com' },
+    });
+  });
+
   it('should reject registration when email delivery is not configured', async () => {
     mockEmailService.isConfigured.mockReturnValueOnce(false);
 
