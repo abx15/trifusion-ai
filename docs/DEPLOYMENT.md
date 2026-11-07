@@ -89,15 +89,17 @@ Use the Django service's own PostgreSQL URL where possible. Prisma's `?schema=pu
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
 | `NEXT_PUBLIC_API_URL` | Public API URL (no credentials) | Yes | `https://api.trifusion.ai` |
-| `API_INTERNAL_URL` | Internal API URL (server-only) | Yes | `http://api:3001/api/v1` |
+| `API_INTERNAL_URL` | NestJS Render Web Service URL, server-only; include `/api/v1` or let the BFF append it | Yes | `https://<nestjs-service>.onrender.com/api/v1` |
 
 ### `apps/platform-admin/.env` (Required)
 
 | Variable | Description | Required | Example |
 |----------|-------------|----------|---------|
 | `NEXT_PUBLIC_API_URL` | Public API URL (no credentials) | Yes | `https://api.trifusion.ai` |
-| `API_INTERNAL_URL` | Internal API URL (server-only) | Yes | `http://api:3001/api/v1` |
+| `API_INTERNAL_URL` | NestJS Render Web Service URL, server-only; include `/api/v1` or let the BFF append it | Yes | `https://<nestjs-service>.onrender.com/api/v1` |
 
+> Both Vercel projects must set `API_INTERNAL_URL` to the public NestJS Render Web Service URL. If it is omitted, the BFF falls back to localhost and production login/dashboard API requests will fail. Keep this variable server-only.
+>
 > ⚠️ **Never commit `.env` files containing real credentials.** Use `.env.example` with placeholder values only.
 
 ---
