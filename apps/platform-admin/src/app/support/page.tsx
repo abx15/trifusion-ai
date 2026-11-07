@@ -16,7 +16,14 @@ async function fetchJson(path: string, init?: RequestInit) {
     headers: { Accept: 'application/json', ...(init?.headers || {}) },
     ...init,
   });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  if (!res.ok) {
+    const payload: unknown = await res.json().catch(() => null);
+    const message =
+      payload && typeof payload === 'object' && 'message' in payload
+        ? String(payload.message)
+        : `Platform API request failed (${res.status})`;
+    throw new Error(message);
+  }
   return res.json();
 }
 
