@@ -44,7 +44,7 @@ interface ViewerStats {
     action: string;
     entityType: string;
     createdAt: string;
-    actor: { email: string } | null;
+    actor?: { email: string } | null;
   }>;
 }
 
