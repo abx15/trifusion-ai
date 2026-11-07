@@ -36,6 +36,7 @@ interface ViewerStats {
   taskCount: number;
   completedTasks: number;
   activeProjects: number;
+  memberCount: number;
   taskStatusCounts: Array<{ status: string; count: number }>;
   projectStatusCounts: Array<{ status: string; count: number }>;
   recentActivity: Array<{
@@ -54,7 +55,9 @@ export default function ViewerDashboardPage() {
   const statsQuery = useQuery<ViewerStats>({
     queryKey: ['viewer-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const overview = await apiClient.graphql<{
+      const [members, overview] = await Promise.all([
+        apiClient.workspaces.members(workspace!.id),
+        apiClient.graphql<{
         workspaceOverview: {
           projectCount: number;
           taskCount: number;
@@ -63,10 +66,11 @@ export default function ViewerDashboardPage() {
         };
         tasks: { data: Array<{ id: string; status: string }> };
         recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-      }>('workspaceOverview', {
-        workspaceId: workspace!.id,
-        filters: {},
-      });
+        }>('workspaceOverview', {
+          workspaceId: workspace!.id,
+          filters: {},
+        }),
+      ]);
 
       const completedTasks = overview.tasks.data.filter((t) => t.status === 'DONE').length;
       const activeProjects = (overview.workspaceOverview.projectStatusCounts as Array<{ status: string; count: number }>).filter((p: { status: string; count: number }) => p.status === 'ACTIVE').reduce((sum: number, p: { count: number }) => sum + p.count, 0);
@@ -76,6 +80,7 @@ export default function ViewerDashboardPage() {
         taskCount: overview.workspaceOverview.taskCount,
         completedTasks,
         activeProjects,
+        memberCount: members.length,
         taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
         projectStatusCounts: overview.workspaceOverview.projectStatusCounts,
         recentActivity: overview.recentActivity.data,
@@ -117,7 +122,7 @@ export default function ViewerDashboardPage() {
         <KPICard title="Active Projects" value={stats.activeProjects} icon={<FolderKanban style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Total Tasks" value={stats.taskCount} icon={<CheckSquare style={{ fontSize: 20, color: '#58508D' }} />} />
         <KPICard title="Completed Tasks" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.taskCount, 1)) * 100)}%`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
-        <KPICard title="Team Members" value="—" subtitle="Read-only access" icon={<UsersIcon style={{ fontSize: 20, color: '#64748B' }} />} />
+        <KPICard title="Team Members" value={stats.memberCount} subtitle="Read-only access" icon={<UsersIcon style={{ fontSize: 20, color: '#64748B' }} />} />
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
