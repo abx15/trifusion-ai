@@ -110,7 +110,8 @@ def ready_check(request):
                 "status": "not_ready",
                 "service": "ai-django",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "dependencies": {"database": "down"},
+                "dependencies": {"database": "down", "ai_provider": "up"},
+                "provider": getattr(PROVIDER, "name", "unknown"),
             },
             status=status.HTTP_503_SERVICE_UNAVAILABLE,
         )
@@ -120,7 +121,8 @@ def ready_check(request):
             "status": "ok",
             "service": "ai-django",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "dependencies": {"database": "up"},
+            "dependencies": {"database": "up", "ai_provider": "up"},
+            "provider": getattr(PROVIDER, "name", "unknown"),
         }
     )
 
