@@ -25,3 +25,12 @@ def test_unknown_provider_is_rejected(monkeypatch):
 
     with pytest.raises(ValueError, match="Unsupported AI_PROVIDER"):
         get_provider()
+
+
+def test_django_env_overrides_node_env_for_production_safety(monkeypatch):
+    monkeypatch.setenv("NODE_ENV", "development")
+    monkeypatch.setenv("DJANGO_ENV", "production")
+    monkeypatch.setenv("AI_PROVIDER", "mock")
+
+    with pytest.raises(RuntimeError, match="not permitted in production"):
+        get_provider()
