@@ -149,12 +149,14 @@ export function DashboardShell({
         sx={{
           width: 280,
           flexShrink: 0,
+          display: { xs: 'none', lg: 'block' },
           '& .MuiDrawer-paper': {
             width: 280,
             boxSizing: 'border-box',
             backgroundColor: 'background.paper',
             borderRight: '1px solid',
             borderColor: 'divider',
+            boxShadow: '8px 0 32px rgba(15, 23, 42, 0.025)',
           },
         }}
       >
@@ -230,7 +232,7 @@ export function DashboardShell({
       </MuiDrawer>
 
       <div className="min-w-0 flex-1">
-        <AppBar position="static" elevation={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+        <AppBar position="sticky" elevation={0} sx={{ top: 0, zIndex: (theme) => theme.zIndex.appBar, borderBottom: '1px solid', borderColor: 'divider', backgroundColor: 'rgba(255,255,255,0.92)', color: 'text.primary', backdropFilter: 'blur(16px)' }}>
           <Toolbar sx={{ px: 3, minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <IconButton
               size="large"
@@ -310,7 +312,7 @@ export function DashboardShell({
           </Box>
         )}
 
-        <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">
+        <main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>
