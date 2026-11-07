@@ -4,8 +4,14 @@ import { PolicyService } from '../../common/policy/policy.service';
 
 describe('AnalyticsService role scoping', () => {
   const prisma = {
+    project: {
+      groupBy: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
     task: {
       groupBy: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
     },
   };
   const policy = {
@@ -16,6 +22,10 @@ describe('AnalyticsService role scoping', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.task.groupBy.mockResolvedValue([]);
+    prisma.task.count.mockResolvedValue(0);
+    prisma.task.findMany.mockResolvedValue([]);
+    prisma.project.groupBy.mockResolvedValue([]);
+    prisma.project.count.mockResolvedValue(0);
     service = new AnalyticsService(
       prisma as unknown as PrismaService,
       policy as unknown as PolicyService,
@@ -33,6 +43,24 @@ describe('AnalyticsService role scoping', () => {
         workspaceId: 'workspace-1',
         assigneeId: 'member-1',
       });
+    }
+  });
+
+  it('counts overdue and upcoming tasks outside the 30-day reporting window', async () => {
+    policy.getWorkspaceContext.mockResolvedValue({
+      role: 'OWNER',
+      workspaceName: 'Workspace One',
+    });
+
+    await service.getWorkspaceOverview('workspace-1', 'owner-1');
+
+    const dueDateQueries = prisma.task.count.mock.calls.map((call) => call[0].where);
+    expect(dueDateQueries).toHaveLength(2);
+    for (const where of dueDateQueries) {
+      expect(where.createdAt).toBeUndefined();
+      expect(where.workspaceId).toBe('workspace-1');
+      expect(where.deletedAt).toBeNull();
+      expect(where.status).toEqual({ not: 'DONE' });
     }
   });
 
