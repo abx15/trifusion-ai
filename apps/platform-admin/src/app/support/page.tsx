@@ -57,10 +57,13 @@ export default function SupportDashboardPage() {
     queryKey: ['support-dashboard-stats', staff?.id, viewFilter],
     queryFn: async () => {
       if (!staff) throw new Error('Platform staff access is required.');
-      const [tickets, assignedTicketsResponse] = await Promise.all([
+      const [tickets, assignedTicketsResponse, assignedTicketListResponse] = await Promise.all([
         fetchJson('/platform/v1/support/tickets?limit=20'),
         fetchJson(
           `/platform/v1/support/tickets?limit=1&assigneeId=${encodeURIComponent(staff?.id)}`
+        ),
+        fetchJson(
+          `/platform/v1/support/tickets?limit=20&assigneeId=${encodeURIComponent(staff?.id)}`
         ),
       ]);
       const sessions = await fetchJson('/platform/v1/support/sessions?limit=20');
@@ -81,7 +84,9 @@ export default function SupportDashboardPage() {
           summary?.averageResolutionHours == null
             ? null
             : `${Number(summary.averageResolutionHours).toFixed(1)}h`,
-        recentTickets: ticketList.map((t: any) => ({
+        recentTickets: (viewFilter === 'assigned'
+          ? (assignedTicketListResponse.tickets ?? [])
+          : ticketList).map((t: any) => ({
           id: t.id,
           title: t.title,
           status: t.status,
