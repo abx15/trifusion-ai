@@ -24,7 +24,7 @@ export class AiService {
     }
 
     this.djangoUrl = configuredDjangoUrl || 'http://localhost:8000';
-    this.sharedSecret = configuredSharedSecret || 'dev-secret';
+    this.sharedSecret = configuredSharedSecret || 'trifusion-ai-dev-secret-change-me';
     this.tokenTtl = this.configService.get<number>('AI_SERVICE_TOKEN_TTL_SECONDS') || 180;
     this.issuer = this.configService.get<string>('AI_SERVICE_ISSUER') || 'trifusion-ai';
     this.audience = this.configService.get<string>('AI_SERVICE_AUDIENCE') || 'ai-django';
