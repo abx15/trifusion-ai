@@ -129,7 +129,7 @@ export class AnalyticsService {
           _count: { _all: true },
         }),
         this.prisma.project.count({
-          where: { ...projectWhere, status: { in: [ProjectStatus.PLANNING, ProjectStatus.ACTIVE] } },
+          where: { ...projectWhere, status: ProjectStatus.ACTIVE },
         }),
         this.prisma.task.count({
           where: { ...taskScopeWhere, dueDate: { lt: new Date() }, status: { not: TaskStatus.DONE } },
