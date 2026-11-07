@@ -60,7 +60,9 @@ TriFusion AI is a monorepo with four deployable services:
 | `AI_SERVICE_URL` | Django AI backend URL | No | `http://django:8000` |
 | `AI_SERVICE_SHARED_SECRET` | HMAC secret for service tokens | No | `32-char-hmac-secret` |
 | `STRIPE_SECRET_KEY` | Stripe payment key | No | `sk_live_...` |
-| `SENDGRID_API_KEY` | Email service key | No | `SG....` |
+| `SENDGRID_API_KEY` | SendGrid SMTP credential (or configure SMTP_HOST/SMTP_USER/SMTP_PASSWORD) | Required for SendGrid |
+| `SENDGRID_FROM_EMAIL` or `EMAIL_FROM` | Verified sender address used for verification and password-reset emails | Required for email delivery |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` | Alternative SMTP transport configuration | Required when not using SendGrid |
 | `AWS_S3_BUCKET` | File storage bucket name | No | `trifusion-files` |
 
 ### `services/ai-django/.env` (Required for the AI service)
