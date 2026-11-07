@@ -30,6 +30,7 @@ def test_correlation_id_propagates(client):
     assert response.headers.get("X-Request-Id") == custom_id
 
 
+@pytest.mark.django_db
 def test_ready_check_returns_200(client):
     response = client.get("/ready")
     assert response.status_code == 200
