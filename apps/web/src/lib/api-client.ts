@@ -279,6 +279,7 @@ export const apiClient = {
         metricVersion: string;
         metrics: {
           activeProjects: number;
+          assignedProjects: number;
           projectStatusCounts: Array<{ status: string; count: number }>;
           taskStatusCounts: Array<{ status: string; count: number }>;
           overdueTasks: number;

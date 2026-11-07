@@ -15,6 +15,14 @@ const envSchema = z.object({
   REDIS_URL: z.string().optional(),
   AI_SERVICE_URL: z.string().url().optional(),
   AI_SERVICE_SHARED_SECRET: z.string().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
+  SENDGRID_API_KEY: z.string().optional(),
+  SENDGRID_FROM_EMAIL: z.string().email().optional(),
+  EMAIL_FROM: z.string().email().optional(),
 });
 
 const validatedEnvSchema = envSchema.extend({
@@ -47,6 +55,19 @@ export function validateEnvironment(config: Record<string, unknown>): ValidatedE
 
   const env = result.data;
   if (env.NODE_ENV === 'production') {
+    if (!config.WEB_URL || env.WEB_URL.includes('localhost')) {
+      throw new Error('WEB_URL must be explicitly set to the production customer app URL.');
+    }
+    const hasSmtpTransport = Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD);
+    const hasSendGridTransport = Boolean(
+      env.SENDGRID_API_KEY && !env.SENDGRID_API_KEY.includes('your-'),
+    );
+    const hasEmailSender = Boolean(env.SENDGRID_FROM_EMAIL || env.EMAIL_FROM);
+    if ((!hasSmtpTransport && !hasSendGridTransport) || !hasEmailSender) {
+      throw new Error(
+        'Production email delivery requires SMTP_HOST/SMTP_USER/SMTP_PASSWORD or SENDGRID_API_KEY, plus SENDGRID_FROM_EMAIL or EMAIL_FROM.',
+      );
+    }
     if (!config.DATABASE_URL) {
       throw new Error('DATABASE_URL must be explicitly configured in production.');
     }
