@@ -104,6 +104,10 @@ export class AnalyticsService {
     const range = this.normalizeDateRange(scopedFilters);
     const projectWhere = this.buildProjectWhere(workspaceId, scopedFilters);
     const taskWhere = this.buildTaskWhere(workspaceId, range, scopedFilters);
+    // Reporting charts use the selected creation period, but overdue and upcoming
+    // work must include older tasks as well.
+    const taskScopeWhere = { ...taskWhere };
+    delete taskScopeWhere.createdAt;
 
     const [projectGroups, taskGroups, activeProjects, overdueTasks, upcomingDeadlines, teamWorkload] =
       await Promise.all([
@@ -121,11 +125,11 @@ export class AnalyticsService {
           where: { ...projectWhere, status: { in: [ProjectStatus.PLANNING, ProjectStatus.ACTIVE] } },
         }),
         this.prisma.task.count({
-          where: { ...taskWhere, dueDate: { lt: new Date() }, status: { not: TaskStatus.DONE } },
+          where: { ...taskScopeWhere, dueDate: { lt: new Date() }, status: { not: TaskStatus.DONE } },
         }),
         this.prisma.task.count({
           where: {
-            ...taskWhere,
+            ...taskScopeWhere,
             dueDate: { gte: new Date(), lt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
             status: { not: TaskStatus.DONE },
           },
