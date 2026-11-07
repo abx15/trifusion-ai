@@ -2,8 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Box, Typography, Paper, Stack } from '@mui/material';
-import { KPICard, EmptyState, Table, Alert, Spinner } from '@trifusion/ui';
+import { KPICard, EmptyState, Table, Alert } from '@trifusion/ui';
 import { PlatformDashboardShell } from '../../components/platform-dashboard-shell';
+import { PlatformLoadingSkeleton } from '../../components/platform-loading-skeleton';
 import { usePlatformStaff } from '../../contexts/platform-staff-context';
 
 async function fetchJson(path: string, init?: RequestInit) {
@@ -141,14 +142,7 @@ export default function SuperadminDashboardPage() {
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center" role="status">
-        <Spinner size="large" />
-        <span className="ml-2">Loading platform control center…</span>
-      </div>
-    );
-  }
+  if (loading) return <PlatformLoadingSkeleton title="Loading the platform control center" />;
   if (error) {
     return (
       <Alert severity="error">
