@@ -51,34 +51,15 @@ export default function SupportDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
   const [viewFilter, setViewFilter] = useState<'all' | 'assigned'>('all');
 
-  if (!staff || !['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
-    return (
-      <section
-        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
-        role="alert"
-      >
-        <h1 className="text-xl font-semibold">Support access required</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Only SUPPORT_AGENT, SUPERADMIN, or PLATFORM_ADMIN can access the support dashboard.
-        </p>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="mt-5 rounded-md border px-4 py-2 text-sm"
-        >
-          Refresh access
-        </button>
-      </section>
-    );
-  }
 
   const statsQuery = useQuery<SupportStats>({
-    queryKey: ['support-dashboard-stats', staff.id, viewFilter],
+    queryKey: ['support-dashboard-stats', staff?.id ?? 'anonymous', viewFilter],
     queryFn: async () => {
+      if (!staff) throw new Error('Platform staff session is unavailable.');
       const [tickets, assignedTicketsResponse] = await Promise.all([
         fetchJson('/platform/v1/support/tickets?limit=20'),
         fetchJson(
-          `/platform/v1/support/tickets?limit=1&assigneeId=${encodeURIComponent(staff.id)}`
+          `/platform/v1/support/tickets?limit=1&assigneeId=${encodeURIComponent(staff?.id ?? 'anonymous')}`
         ),
       ]);
       const sessions = await fetchJson('/platform/v1/support/sessions?limit=20');
@@ -124,6 +105,27 @@ export default function SupportDashboardPage() {
     ),
   });
 
+  if (!staff || !['SUPPORT_AGENT', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
+    return (
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
+        <h1 className="text-xl font-semibold">Support access required</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Only SUPPORT_AGENT, SUPERADMIN, or PLATFORM_ADMIN can access the support dashboard.
+        </p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
+          Refresh access
+        </button>
+      </section>
+    );
+  }
+
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
 
@@ -146,7 +148,7 @@ export default function SupportDashboardPage() {
   const stats = statsQuery.data!;
   const ticketsToShow =
     viewFilter === 'assigned'
-      ? stats.recentTickets.filter((t) => t.assigneeId === staff.id)
+      ? stats.recentTickets.filter((t) => t.assigneeId === staff?.id ?? 'anonymous')
       : stats.recentTickets;
 
   return (
@@ -295,7 +297,7 @@ export default function SupportDashboardPage() {
                   status: t.status.replaceAll('_', ' '),
                   priority: t.priority,
                   assignee:
-                    t.assigneeId === staff.id
+                    t.assigneeId === staff?.id ?? 'anonymous'
                       ? 'Me (you)'
                       : t.assigneeId
                         ? 'Assigned'

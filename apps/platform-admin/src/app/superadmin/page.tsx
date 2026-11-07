@@ -56,30 +56,11 @@ interface PlatformStats {
 export default function SuperadminDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
 
-  if (!staff || staff.role !== 'SUPERADMIN') {
-    return (
-      <section
-        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
-        role="alert"
-      >
-        <h1 className="text-xl font-semibold">SUPERADMIN access required</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Only the SUPERADMIN role can access the global platform control center.
-        </p>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="mt-5 rounded-md border px-4 py-2 text-sm"
-        >
-          Refresh access
-        </button>
-      </section>
-    );
-  }
 
   const statsQuery = useQuery<PlatformStats>({
-    queryKey: ['superadmin-dashboard-stats', staff.id],
+    queryKey: ['superadmin-dashboard-stats', staff?.id ?? 'anonymous'],
     queryFn: async () => {
+      if (!staff) throw new Error('Platform staff session is unavailable.');
       const [metrics, users, workspaces, auditLogs] = await Promise.all([
         fetchJson('/platform/v1/metrics'),
         fetchJson('/platform/v1/users?limit=10'),
@@ -132,6 +113,27 @@ export default function SuperadminDashboardPage() {
     },
     enabled: Boolean(staff && staff.role === 'SUPERADMIN'),
   });
+
+  if (!staff || staff.role !== 'SUPERADMIN') {
+    return (
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
+        <h1 className="text-xl font-semibold">SUPERADMIN access required</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Only the SUPERADMIN role can access the global platform control center.
+        </p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
+          Refresh access
+        </button>
+      </section>
+    );
+  }
 
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
