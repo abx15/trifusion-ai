@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   NotFoundException,
+  ServiceUnavailableException,
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -114,14 +115,14 @@ export class AuthService {
   }
 
   private async sendVerificationEmail(email: string, code: string) {
-    const subject = 'Verify your email — TriFusion AI';
-    const text = `Your verification code is ${code}. It expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
-
     if (!this.emailService.isConfigured()) {
-      this.logger.warn('EmailService is not configured; verification code will not be delivered.');
-      return;
+      throw new ServiceUnavailableException(
+        'Email delivery is not configured. Contact the administrator before registering or requesting a verification code.',
+      );
     }
 
+    const subject = 'Verify your email — TriFusion AI';
+    const text = `Your verification code is ${code}. It expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
     await this.emailService.send(email, subject, text);
   }
 
@@ -170,6 +171,12 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, meta?: RequestMeta, _res?: Response) {
+    if (!this.emailService.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'Email delivery is not configured. Registration is temporarily unavailable.',
+      );
+    }
+
     const normalizedEmail = dto.email.trim().toLowerCase();
 
     const existingUser = await this.prisma.user.findUnique({
@@ -510,6 +517,9 @@ export class AuthService {
 
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('User account is disabled');
     }
 
     if (user.isEmailVerified) {
