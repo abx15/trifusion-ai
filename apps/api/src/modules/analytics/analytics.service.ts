@@ -77,6 +77,9 @@ export class AnalyticsService {
       deletedAt: null,
       ...(filters.projectId ? { id: filters.projectId } : {}),
       ...(filters.projectStatus ? { status: filters.projectStatus } : {}),
+      ...(filters.assigneeId
+        ? { tasks: { some: { assigneeId: filters.assigneeId, deletedAt: null } } }
+        : {}),
     };
   }
 
@@ -208,9 +211,9 @@ export class AnalyticsService {
   }
 
   async getProjectAnalytics(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
-    const where = this.buildProjectWhere(workspaceId, filters);
+    const scopedFilters = await this.scopeMemberFilters(workspaceId, actorId, filters);
+    const range = this.normalizeDateRange(scopedFilters);
+    const where = this.buildProjectWhere(workspaceId, scopedFilters);
 
     const groups = await this.prisma.project.groupBy({
       by: ['status'],
@@ -235,8 +238,13 @@ export class AnalyticsService {
       deletedAt: null,
       ...(scopedFilters.projectId ? { projectId: scopedFilters.projectId } : {}),
       ...(scopedFilters.assigneeId ? { assigneeId: scopedFilters.assigneeId } : {}),
-      ...(scopedFilters.taskStatus ? { status: scopedFilters.taskStatus } : {}),
-      status: { not: TaskStatus.DONE },
+      ...(scopedFilters.projectStatus
+        ? { project: { is: { status: scopedFilters.projectStatus } } }
+        : {}),
+      AND: [
+        { status: { not: TaskStatus.DONE } },
+        ...(scopedFilters.taskStatus ? [{ status: scopedFilters.taskStatus }] : []),
+      ],
       createdAt: { gte: range.start, lte: range.end },
     };
 

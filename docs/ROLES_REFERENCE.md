@@ -110,10 +110,10 @@ Stored in `PlatformStaffRole.role` (`PlatformStaffRoleType` enum in `schema.pris
 
 | Level | Role | Hierarchy Value | Description |
 |-------|------|:---:|-------------|
-| 1 | `ANALYST` | 1 | Aggregated analytics & reporting only |
-| 2 | `SUPPORT_AGENT` | 2 | Bounded, consent-based support sessions |
-| 3 | `PLATFORM_ADMIN` | 3 | Operational administration (tenants, users, config) |
-| 4 | `SUPERADMIN` | 4 | Full platform configuration + role management |
+| 1 (highest) | `SUPERADMIN` | 4 | Full platform configuration + role management |
+| 2 | `PLATFORM_ADMIN` | 3 | Operational administration (tenants, users, config) |
+| 3 | `ANALYST` | 2 | Aggregated analytics & reporting only |
+| 4 (lowest) | `SUPPORT_AGENT` | 1 | Bounded, consent-based support sessions |
 
 ### What Each Platform Staff Role Is Used For
 
@@ -226,10 +226,10 @@ Defined in `database/prisma/schema.prisma`:
 | Workspace | `MEMBER` | 2 | Creates and works on clients/projects/tasks |
 | Workspace | `TEAM_ADMIN` | 3 | Manages members + workspace resources |
 | Workspace | `OWNER` | 4 | Full workspace control incl. delete & transfer |
-| Platform | `ANALYST` | 1 | Aggregated analytics & reporting |
-| Platform | `SUPPORT_AGENT` | 2 | Consent-based bounded support sessions |
-| Platform | `PLATFORM_ADMIN` | 3 | Tenant/user activation, operational admin |
-| Platform | `SUPERADMIN` | 4 | Platform config + staff role management |
+| Platform | `SUPERADMIN` | 1 (highest) | Platform config + staff role management |
+| Platform | `PLATFORM_ADMIN` | 2 | Tenant/user activation, operational admin |
+| Platform | `ANALYST` | 3 | Aggregated analytics & reporting |
+| Platform | `SUPPORT_AGENT` | 4 (lowest) | Consent-based bounded support sessions |
 
 **Total roles: 8** (4 customer workspace + 4 platform staff). All data shown in the UI is fetched live from the Neon `neondb` database, filtered server-side by the authenticated user's role and workspace membership.
 
