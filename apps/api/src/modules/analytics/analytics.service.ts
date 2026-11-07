@@ -77,6 +77,9 @@ export class AnalyticsService {
       deletedAt: null,
       ...(filters.projectId ? { id: filters.projectId } : {}),
       ...(filters.projectStatus ? { status: filters.projectStatus } : {}),
+      ...(filters.assigneeId
+        ? { tasks: { some: { assigneeId: filters.assigneeId, deletedAt: null } } }
+        : {}),
     };
   }
 
@@ -208,9 +211,9 @@ export class AnalyticsService {
   }
 
   async getProjectAnalytics(workspaceId: string, actorId: string, filters: AnalyticsFilters = {}) {
-    await this.policyService.getWorkspaceContext(actorId, workspaceId);
-    const range = this.normalizeDateRange(filters);
-    const where = this.buildProjectWhere(workspaceId, filters);
+    const scopedFilters = await this.scopeMemberFilters(workspaceId, actorId, filters);
+    const range = this.normalizeDateRange(scopedFilters);
+    const where = this.buildProjectWhere(workspaceId, scopedFilters);
 
     const groups = await this.prisma.project.groupBy({
       by: ['status'],
