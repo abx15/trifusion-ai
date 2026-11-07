@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Public } from '../auth/decorators/public.decorator';
@@ -34,13 +34,20 @@ export class ReadyController {
   async ready() {
     const isDbHealthy = await this.prisma.isHealthy();
 
+    if (!isDbHealthy) {
+      throw new ServiceUnavailableException({
+        status: 'not_ready',
+        service: 'api',
+        timestamp: new Date().toISOString(),
+        services: { database: 'down' },
+      });
+    }
+
     return {
-      status: isDbHealthy ? 'ok' : 'degraded',
+      status: 'ok',
       service: 'api',
       timestamp: new Date().toISOString(),
-      services: {
-        database: isDbHealthy ? 'up' : 'down',
-      },
+      services: { database: 'up' },
     };
   }
 }

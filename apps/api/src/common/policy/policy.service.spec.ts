@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PolicyService } from './policy.service';
+import {
+  PolicyService,
+  PLATFORM_ROLE_HIERARCHY,
+} from './policy.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   WorkspaceRole,
@@ -9,6 +12,17 @@ import {
   WorkspaceMemberStatus,
 } from '@prisma/client';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+
+describe('Platform role hierarchy', () => {
+  it('keeps the product-defined authority order', () => {
+    expect(PLATFORM_ROLE_HIERARCHY).toEqual({
+      SUPPORT_AGENT: 1,
+      ANALYST: 2,
+      PLATFORM_ADMIN: 3,
+      SUPERADMIN: 4,
+    });
+  });
+});
 
 describe('PolicyService', () => {
   let service: PolicyService;

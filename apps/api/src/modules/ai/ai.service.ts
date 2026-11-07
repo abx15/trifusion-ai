@@ -15,8 +15,16 @@ export class AiService {
     private readonly configService: ConfigService,
     private readonly circuitBreaker: CircuitBreakerService,
   ) {
-    this.djangoUrl = this.configService.get<string>('AI_SERVICE_URL') || 'http://localhost:8000';
-    this.sharedSecret = this.configService.get<string>('AI_SERVICE_SHARED_SECRET') || 'dev-secret';
+    const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+    const configuredDjangoUrl = this.configService.get<string>('AI_SERVICE_URL');
+    const configuredSharedSecret = this.configService.get<string>('AI_SERVICE_SHARED_SECRET');
+
+    if (nodeEnv === 'production' && (!configuredDjangoUrl || !configuredSharedSecret)) {
+      throw new Error('AI_SERVICE_URL and AI_SERVICE_SHARED_SECRET are required in production.');
+    }
+
+    this.djangoUrl = configuredDjangoUrl || 'http://localhost:8000';
+    this.sharedSecret = configuredSharedSecret || 'trifusion-ai-dev-secret-change-me';
     this.tokenTtl = this.configService.get<number>('AI_SERVICE_TOKEN_TTL_SECONDS') || 180;
     this.issuer = this.configService.get<string>('AI_SERVICE_ISSUER') || 'trifusion-ai';
     this.audience = this.configService.get<string>('AI_SERVICE_AUDIENCE') || 'ai-django';
