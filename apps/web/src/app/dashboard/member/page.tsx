@@ -64,35 +64,29 @@ export default function MemberDashboardPage() {
   const statsQuery = useQuery<MemberStats>({
     queryKey: ['member-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const overview = await apiClient.graphql<{
-        workspaceOverview: {
-          projectCount: number;
-          taskCount: number;
-          overdueTasks: number;
-          upcomingDeadlines: number;
-          taskStatusCounts: Array<{ status: string; count: number }>;
-        };
-        tasks: { data: Array<{ id: string; title: string; status: string; priority: string; dueDate: string | null; project: { id: string; name: string } | null }> };
-        recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-      }>('workspaceOverview', {
-        workspaceId: workspace!.id,
-        filters: { assigneeId: user?.id },
-      });
-
-      const assignedTasks = overview.tasks.data;
-      const pendingTasks = assignedTasks.filter((t) => t.status === 'TODO' || t.status === 'IN_PROGRESS' || t.status === 'REVIEW').length;
-      const completedTasks = assignedTasks.filter((t) => t.status === 'DONE').length;
+      const [overview, tasks, activity] = await Promise.all([
+        apiClient.analytics.overview(workspace!.id, { assigneeId: user?.id }),
+        apiClient.tasks.list(workspace!.id, { limit: 50, assigneeId: user?.id }),
+        apiClient.activity.list(workspace!.id, { limit: 10 }),
+      ]);
+      const taskStatusCounts = overview.metrics.taskStatusCounts;
+      const assignedTasks = tasks.data;
+      const pendingTasks = taskStatusCounts
+        .filter((item) => ['TODO', 'IN_PROGRESS', 'REVIEW'].includes(item.status))
+        .reduce((sum, item) => sum + item.count, 0);
+      const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
+      const assignedProjects = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
 
       return {
-        assignedTasks: assignedTasks.length,
+        assignedTasks: tasks.total,
         pendingTasks,
         completedTasks,
-        overdueTasks: overview.workspaceOverview.overdueTasks,
-        upcomingDeadlines: overview.workspaceOverview.upcomingDeadlines,
-        assignedProjects: overview.workspaceOverview.projectCount,
-        taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
+        overdueTasks: overview.metrics.overdueTasks,
+        upcomingDeadlines: overview.metrics.upcomingDeadlines,
+        assignedProjects,
+        taskStatusCounts,
         recentTasks: assignedTasks,
-        recentActivity: overview.recentActivity.data,
+        recentActivity: activity.data,
       };
     },
     enabled: Boolean(workspace && Boolean(user?.id)),
