@@ -62,14 +62,14 @@ export default function TeamAdminDashboardPage() {
         apiClient.analytics.overview(workspace!.id),
         apiClient.activity.list(workspace!.id, { limit: 10 }),
       ]);
-      const projectCount = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const projectCount = overview.metrics.activeProjects;
       const taskCount = overview.metrics.taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
       const completedTasks = overview.metrics.taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
 
       return {
         projectCount,
         taskCount,
-        memberCount: membersResult.length,
+        memberCount: membersResult.filter((member) => member.role === 'MEMBER' || member.role === 'VIEWER').length,
         completedTasks,
         overdueTasks: overview.metrics.overdueTasks,
         taskStatusCounts: overview.metrics.taskStatusCounts,
