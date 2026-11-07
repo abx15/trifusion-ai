@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { WorkspaceGuard } from './guards/workspace.guard';
 import { PlatformRolesGuard } from './guards/platform-roles.guard';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PlatformRolesGuard } from './guards/platform-roles.guard';
         },
       }),
     }),
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [

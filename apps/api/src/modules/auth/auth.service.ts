@@ -12,11 +12,14 @@ import * as crypto from 'crypto';
 import { Response } from 'express';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditLogService } from '../audit/audit.service';
+import { EmailService } from '../email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { UserStatus, WorkspaceStatus, WorkspaceMemberStatus, AuditAction } from '@prisma/client';
 
 export interface RequestMeta {
@@ -25,14 +28,22 @@ export interface RequestMeta {
   requestId?: string;
 }
 
+export interface VerificationResult {
+  status: string;
+  email: string;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  private readonly verificationCodeTtlMs = 15 * 60 * 1000; // 15 minutes
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly auditLogService: AuditLogService,
+    private readonly emailService: EmailService,
   ) {}
 
   private hashToken(token: string): string {
@@ -69,6 +80,51 @@ export class AuthService {
       accessToken,
       refreshToken: rawRefreshToken,
     };
+  }
+
+  private generateVerificationCode(): string {
+    const min = 100000;
+    const max = 999999;
+    return Math.floor(min + Math.random() * (max - min + 1)).toString();
+  }
+
+  private async createVerificationToken(userId: string, code: string) {
+    const tokenHash = this.hashToken(code);
+    const expiresAt = new Date(Date.now() + this.verificationCodeTtlMs);
+
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        userId,
+        tokenHash,
+        expiresAt,
+      },
+    });
+
+    return tokenHash;
+  }
+
+  private async invalidateExistingVerificationTokens(userId: string) {
+    await this.prisma.emailVerificationToken.updateMany({
+      where: {
+        userId,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+  }
+
+  private async sendVerificationEmail(email: string, code: string) {
+    const subject = 'Verify your email — TriFusion AI';
+    const text = `Your verification code is ${code}. It expires in 15 minutes. If you did not request this, you can safely ignore this email.`;
+
+    if (!this.emailService.isConfigured()) {
+      this.logger.warn('EmailService is not configured; verification code will not be delivered.');
+      return;
+    }
+
+    await this.emailService.send(email, subject, text);
   }
 
   /**
@@ -115,7 +171,7 @@ export class AuthService {
     });
   }
 
-  async register(dto: RegisterDto, meta?: RequestMeta, res?: Response) {
+  async register(dto: RegisterDto, meta?: RequestMeta, _res?: Response) {
     const normalizedEmail = dto.email.trim().toLowerCase();
 
     const existingUser = await this.prisma.user.findUnique({
@@ -167,11 +223,9 @@ export class AuthService {
       return { user, workspace };
     });
 
-    const tokens = await this.generateTokens(result.user.id, result.user.email);
-
-    if (res) {
-      this.setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
-    }
+    const verificationCode = this.generateVerificationCode();
+    await this.createVerificationToken(result.user.id, verificationCode);
+    await this.sendVerificationEmail(result.user.email, verificationCode);
 
     await this.auditLogService.log({
       actorId: result.user.id,
@@ -182,28 +236,14 @@ export class AuthService {
       requestId: meta?.requestId,
       ip: meta?.ip,
       userAgent: meta?.userAgent,
-      metadata: { email: result.user.email },
+      metadata: { email: result.user.email, emailVerified: false },
     });
 
     return {
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        firstName: result.user.profile?.firstName || dto.firstName,
-        lastName: result.user.profile?.lastName || dto.lastName,
-        isEmailVerified: result.user.isEmailVerified,
-        workspaces: [
-          {
-            id: result.workspace.id,
-            name: result.workspace.name,
-            slug: result.workspace.slug,
-            type: result.workspace.type,
-            role: 'OWNER',
-          },
-        ],
-      },
-      tokens,
-    };
+      status: 'email_verification_pending',
+      email: result.user.email,
+      message: 'Account created. Please check your email for a verification code to complete registration.',
+    } as VerificationResult;
   }
 
   async login(dto: LoginDto, meta?: RequestMeta, res?: Response) {
@@ -252,6 +292,24 @@ export class AuthService {
         metadata: { email: normalizedEmail, reason: 'Invalid password' },
       });
       throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!user.isEmailVerified) {
+      await this.auditLogService.log({
+        actorId: user.id,
+        action: AuditAction.AUTH_LOGIN_FAILED,
+        targetType: 'User',
+        targetId: user.id,
+        requestId: meta?.requestId,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+        metadata: { email: normalizedEmail, reason: 'Email not verified' },
+      });
+      throw new UnauthorizedException({
+        status: 'email_not_verified',
+        email: user.email,
+        message: 'Please verify your email before logging in.',
+      } as { status: string; email: string; message: string });
     }
 
     const tokens = await this.generateTokens(user.id, user.email);
@@ -433,6 +491,119 @@ export class AuthService {
 
     return {
       message: 'Password reset successfully. You may now sign in.',
+    };
+  }
+
+  async verifyEmail(dto: VerifyEmailDto, meta?: RequestMeta, res?: Response) {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      const tokens = await this.generateTokens(user.id, user.email);
+
+      if (res) {
+        this.setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
+      }
+
+      return {
+        status: 'already_verified',
+        email: user.email,
+        message: 'Email is already verified.',
+        tokens,
+      };
+    }
+
+    const tokenHash = this.hashToken(dto.code);
+
+    const verificationRecord = await this.prisma.emailVerificationToken.findFirst({
+      where: {
+        userId: user.id,
+        tokenHash,
+        usedAt: null,
+      },
+    });
+
+    if (!verificationRecord || verificationRecord.expiresAt < new Date()) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { isEmailVerified: true },
+      }),
+      this.prisma.emailVerificationToken.update({
+        where: { id: verificationRecord.id },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    const tokens = await this.generateTokens(user.id, user.email);
+
+    if (res) {
+      this.setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
+    }
+
+    await this.auditLogService.log({
+      actorId: user.id,
+      action: AuditAction.USER_SIGNUP,
+      targetType: 'User',
+      targetId: user.id,
+      requestId: meta?.requestId,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: user.email, emailVerified: true },
+    });
+
+    return {
+      status: 'verified',
+      email: user.email,
+      message: 'Email verified successfully.',
+      tokens,
+    };
+  }
+
+  async resendVerification(dto: ResendVerificationDto, meta?: RequestMeta) {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.isEmailVerified) {
+      throw new BadRequestException('Email is already verified');
+    }
+
+    await this.invalidateExistingVerificationTokens(user.id);
+
+    const verificationCode = this.generateVerificationCode();
+    await this.createVerificationToken(user.id, verificationCode);
+    await this.sendVerificationEmail(user.email, verificationCode);
+
+    await this.auditLogService.log({
+      actorId: user.id,
+      action: AuditAction.USER_SIGNUP,
+      targetType: 'User',
+      targetId: user.id,
+      requestId: meta?.requestId,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+      metadata: { email: user.email, emailVerified: false, action: 'resend_verification' },
+    });
+
+    return {
+      message: 'Verification code resent. Please check your email.',
     };
   }
 
