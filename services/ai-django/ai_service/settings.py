@@ -36,6 +36,9 @@ if not DEBUG:
             "32 characters when DEBUG=False."
         )
 
+if IS_PRODUCTION and not os.environ.get("DJANGO_ALLOWED_HOSTS", "").strip():
+    raise ValueError("DJANGO_ALLOWED_HOSTS is required in production.")
+
 DEFAULT_ALLOWED_HOSTS = "localhost,127.0.0.1,0.0.0.0"
 ALLOWED_HOSTS = [
     host.strip()
