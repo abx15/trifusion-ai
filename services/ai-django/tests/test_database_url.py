@@ -16,3 +16,19 @@ def test_normalize_database_url_rejects_non_public_schema():
 
     with pytest.raises(ValueError, match="only supports the public PostgreSQL schema"):
         normalize_database_url(url)
+
+
+def test_django_env_production_requires_database_even_without_node_env(monkeypatch):
+    import runpy
+
+    monkeypatch.setenv("DJANGO_ENV", "production")
+    monkeypatch.delenv("NODE_ENV", raising=False)
+    monkeypatch.setenv("DJANGO_DEBUG", "False")
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "x" * 64)
+    monkeypatch.setenv("AI_SERVICE_SHARED_SECRET", "y" * 40)
+    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "ai.example.com")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("DJANGO_DATABASE_URL", raising=False)
+
+    with pytest.raises(ValueError, match="DATABASE_URL .* is required in production"):
+        runpy.run_module("ai_service.settings")
