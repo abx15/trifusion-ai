@@ -7,7 +7,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from django.db import connections, router
+from django.db import connections
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -101,10 +101,9 @@ def ready_check(request):
     try:
         database = connections["default"]
         database.ensure_connection()
-        if router.allow_migrate(database.alias, "ai_gateway"):
-            with database.cursor() as cursor:
-                cursor.execute("SELECT 1")
-                cursor.fetchone()
+        with database.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
     except Exception:
         return Response(
             {
