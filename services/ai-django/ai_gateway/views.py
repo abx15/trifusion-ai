@@ -7,6 +7,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
+from django.db import connections
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -96,13 +97,26 @@ def health_check(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def ready_check(request):
-    """Readiness probe for ai-django service."""
+    """Readiness probe: report unavailable dependencies instead of a false positive."""
+    try:
+        connections["default"].ensure_connection()
+    except Exception:
+        return Response(
+            {
+                "status": "not_ready",
+                "service": "ai-django",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "dependencies": {"database": "down"},
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
     return Response(
         {
             "status": "ok",
             "service": "ai-django",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "dependencies": {"core": "up"},
+            "dependencies": {"database": "up"},
         }
     )
 
