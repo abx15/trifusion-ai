@@ -21,10 +21,10 @@ if NODE_ENV == "production" and DEBUG:
     raise ValueError("DJANGO_DEBUG must be False in production.")
 
 if not DEBUG:
-    if SECRET_KEY == DEFAULT_DEV_KEY:
-        raise ValueError("DJANGO_SECRET_KEY must be set securely when DJANGO_DEBUG=False.")
-    if AI_SERVICE_SHARED_SECRET == DEFAULT_SERVICE_SECRET:
-        raise ValueError("AI_SERVICE_SHARED_SECRET must be set securely when DJANGO_DEBUG=False.")
+    if SECRET_KEY == DEFAULT_DEV_KEY or len(SECRET_KEY) < 50:
+        raise ValueError("DJANGO_SECRET_KEY must be a unique secret of at least 50 characters when DEBUG=False.")
+    if AI_SERVICE_SHARED_SECRET == DEFAULT_SERVICE_SECRET or len(AI_SERVICE_SHARED_SECRET) < 32:
+        raise ValueError("AI_SERVICE_SHARED_SECRET must be a unique secret of at least 32 characters when DEBUG=False.")
 
 DEFAULT_ALLOWED_HOSTS = "localhost,127.0.0.1,0.0.0.0"
 ALLOWED_HOSTS = [
@@ -33,7 +33,7 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 if not DEBUG and (not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS):
-    raise ValueError("DJANGO_ALLOWED_HOSTS must list explicit hostnames when DJANGO_DEBUG=False.")
+    raise ValueError("DJANGO_ALLOWED_HOSTS must list explicit hostnames when DEBUG=False.")
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS", "").split(",")
@@ -65,14 +65,16 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "ai_service.urls"
-
 TEMPLATES = []
-
 WSGI_APPLICATION = "ai_service.wsgi.application"
 ASGI_APPLICATION = "ai_service.asgi.application"
 
 database_url = os.environ.get("DATABASE_URL") or os.environ.get("DJANGO_DATABASE_URL")
+if NODE_ENV == "production" and not database_url:
+    raise ValueError("DATABASE_URL (or DJANGO_DATABASE_URL) is required in production; SQLite fallback is disabled.")
 if database_url:
+    if NODE_ENV == "production" and not database_url.startswith(("postgres://", "postgresql://")):
+        raise ValueError("Production DATABASE_URL must use PostgreSQL.")
     import dj_database_url
     DATABASES = {
         "default": dj_database_url.parse(database_url, conn_max_age=600),
@@ -86,24 +88,19 @@ else:
     }
 
 AUTH_PASSWORD_VALIDATORS = []
-
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_EXPOSE_HEADERS = ["X-Request-Id"]
-
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 X_FRAME_OPTIONS = "DENY"
 
 REST_FRAMEWORK = {
-    "DEFAULT_RENDERER_CLASSES": [
-        "rest_framework.renderers.JSONRenderer",
-    ],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "UNAUTHENTICATED_USER": None,
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": [],

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, develop, production-hardening]
   pull_request:
     branches: [main, develop]
   schedule:
@@ -130,7 +130,7 @@ jobs:
         run: pnpm test
 
       - name: Run Django test suite explicitly
-        run: python -m pytest services/ai-django/tests -q
+        run: python services/ai-django/manage.py test ai_gateway --verbosity 2
 
   build:
     name: Build (All Workspaces)
