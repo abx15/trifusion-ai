@@ -14,7 +14,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (data: LoginRequest) => Promise<AuthUserResponse>;
-  register: (data: RegisterRequest) => Promise<void>;
+  register: (data: RegisterRequest) => Promise<{ email: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -59,7 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const response = await apiClient.auth.register(data);
       queryClient.clear();
-      setUser(response.user);
+      setUser(null);
+      return { email: response.email };
     } finally {
       setIsLoading(false);
     }

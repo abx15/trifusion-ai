@@ -34,13 +34,13 @@ export default function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await register({
+      const result = await register({
         firstName,
         lastName,
         email,
         password,
       });
-      router.push('/dashboard');
+      router.push(`/verify-email?email=${encodeURIComponent(result.email)}`);
     } catch (err: unknown) {
       const message =
         err && typeof err === 'object' && 'message' in err

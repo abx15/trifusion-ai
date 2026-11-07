@@ -17,7 +17,13 @@ import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
-import { RequireWorkspaceRole, RequirePlatformRole, CurrentUser, CurrentWorkspace } from '../auth/decorators/authorization.decorators';
+import {
+  RequireWorkspaceRole,
+  RequirePlatformRole,
+  RequirePlatformRoles,
+  CurrentUser,
+  CurrentWorkspace,
+} from '../auth/decorators/authorization.decorators';
 import { SupportService } from './support.service';
 import {
   CreateTicketDto,
@@ -184,7 +190,11 @@ export class PlatformSupportController {
 
   @Get('tickets')
   @UseGuards(JwtAuthGuard, PlatformRolesGuard)
-  @RequirePlatformRole(PlatformStaffRoleType.SUPPORT_AGENT)
+  @RequirePlatformRoles(
+    PlatformStaffRoleType.SUPPORT_AGENT,
+    PlatformStaffRoleType.PLATFORM_ADMIN,
+    PlatformStaffRoleType.SUPERADMIN,
+  )
   @ApiOperation({ summary: 'List all support tickets across workspaces (platform staff)' })
   async listAllTickets(@Query() filters: { status?: string; priority?: string; assigneeId?: string; limit?: number; cursor?: string }) {
     return this.supportService.listAllTickets(filters);
@@ -192,7 +202,11 @@ export class PlatformSupportController {
 
   @Get('sessions')
   @UseGuards(JwtAuthGuard, PlatformRolesGuard)
-  @RequirePlatformRole(PlatformStaffRoleType.SUPPORT_AGENT)
+  @RequirePlatformRoles(
+    PlatformStaffRoleType.SUPPORT_AGENT,
+    PlatformStaffRoleType.PLATFORM_ADMIN,
+    PlatformStaffRoleType.SUPERADMIN,
+  )
   @ApiOperation({ summary: 'List all support sessions across workspaces (platform staff)' })
   async listAllSessions(@Query() filters: { status?: string; limit?: number; cursor?: string }) {
     return this.supportService.listAllSessions(filters);

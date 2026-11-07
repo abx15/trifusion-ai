@@ -36,6 +36,7 @@ interface ViewerStats {
   taskCount: number;
   completedTasks: number;
   activeProjects: number;
+  memberCount: number;
   taskStatusCounts: Array<{ status: string; count: number }>;
   projectStatusCounts: Array<{ status: string; count: number }>;
   recentActivity: Array<{
@@ -54,31 +55,27 @@ export default function ViewerDashboardPage() {
   const statsQuery = useQuery<ViewerStats>({
     queryKey: ['viewer-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const overview = await apiClient.graphql<{
-        workspaceOverview: {
-          projectCount: number;
-          taskCount: number;
-          projectStatusCounts: Array<{ status: string; count: number }>;
-          taskStatusCounts: Array<{ status: string; count: number }>;
-        };
-        tasks: { data: Array<{ id: string; status: string }> };
-        recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-      }>('workspaceOverview', {
-        workspaceId: workspace!.id,
-        filters: {},
-      });
-
-      const completedTasks = overview.tasks.data.filter((t) => t.status === 'DONE').length;
-      const activeProjects = (overview.workspaceOverview.projectStatusCounts as Array<{ status: string; count: number }>).filter((p: { status: string; count: number }) => p.status === 'ACTIVE').reduce((sum: number, p: { count: number }) => sum + p.count, 0);
+      const [members, overview, activity] = await Promise.all([
+        apiClient.workspaces.members(workspace!.id),
+        apiClient.analytics.overview(workspace!.id),
+        apiClient.activity.list(workspace!.id, { limit: 10 }),
+      ]);
+      const projectStatusCounts = overview.metrics.projectStatusCounts;
+      const taskStatusCounts = overview.metrics.taskStatusCounts;
+      const projectCount = projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const taskCount = taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
+      const activeProjects = projectStatusCounts.find((item) => item.status === 'ACTIVE')?.count ?? 0;
 
       return {
-        projectCount: overview.workspaceOverview.projectCount,
-        taskCount: overview.workspaceOverview.taskCount,
+        projectCount,
+        taskCount,
         completedTasks,
         activeProjects,
-        taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
-        projectStatusCounts: overview.workspaceOverview.projectStatusCounts,
-        recentActivity: overview.recentActivity.data,
+        memberCount: members.length,
+        taskStatusCounts,
+        projectStatusCounts,
+        recentActivity: activity.data,
       };
     },
     enabled: Boolean(workspace && Boolean(user?.id)),
@@ -113,14 +110,14 @@ export default function ViewerDashboardPage() {
         { label: 'Overview' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard title="Active Projects" value={stats.activeProjects} icon={<FolderKanban style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Total Tasks" value={stats.taskCount} icon={<CheckSquare style={{ fontSize: 20, color: '#58508D' }} />} />
         <KPICard title="Completed Tasks" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.taskCount, 1)) * 100)}%`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
-        <KPICard title="Team Members" value="—" subtitle="Read-only access" icon={<UsersIcon style={{ fontSize: 20, color: '#64748B' }} />} />
+        <KPICard title="Team Members" value={stats.memberCount} subtitle="Read-only access" icon={<UsersIcon style={{ fontSize: 20, color: '#64748B' }} />} />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>

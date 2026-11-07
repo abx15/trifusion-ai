@@ -34,7 +34,7 @@ interface AnalystStats {
   apiTrends: Array<{ name: string; requests: number; errors: number }>;
   usageDistribution: Array<{ name: string; value: number }>;
   performanceTrends: Array<{ name: string; avgResponse: number; p95: number }>;
-  resourceConsumption: Array<{ name: string; used: number; total: number }>;
+  resourceConsumption: Array<{ name: string; used: number; total: number | null }>;
   recentActivity: Array<{
     id: string;
     action: string;
@@ -47,30 +47,12 @@ interface AnalystStats {
 export default function AnalystDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
 
-  if (!staff || !['ANALYST', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
-    return (
-      <section
-        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
-        role="alert"
-      >
-        <h1 className="text-xl font-semibold">Analyst access required</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Only ANALYST, SUPERADMIN, or PLATFORM_ADMIN can access platform analytics.
-        </p>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="mt-5 rounded-md border px-4 py-2 text-sm"
-        >
-          Refresh access
-        </button>
-      </section>
-    );
-  }
+  const hasAccess = Boolean(staff && ['ANALYST', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role));
 
   const statsQuery = useQuery<AnalystStats>({
-    queryKey: ['analyst-dashboard-stats', staff.id],
+    queryKey: ['analyst-dashboard-stats', staff?.id],
     queryFn: async () => {
+      if (!staff) throw new Error('Platform staff access is required.');
       const [metrics, auditLogs] = await Promise.all([
         fetchJson('/platform/v1/metrics'),
         fetchJson('/platform/v1/audit-logs?limit=20'),
@@ -98,7 +80,7 @@ export default function AnalystDashboardPage() {
       const resourceConsumption = (metrics.resourceConsumption ?? []).map((m: any) => ({
         name: m.name || 'Unknown',
         used: m.used ?? 0,
-        total: m.total ?? 100,
+        total: typeof m.total === 'number' ? m.total : null,
       }));
 
       return {
@@ -108,7 +90,7 @@ export default function AnalystDashboardPage() {
         performanceTrends,
         resourceConsumption,
         unavailableMetrics: metrics.unavailableMetrics ?? [],
-        recentActivity: (auditLogs ?? []).map((log: any) => ({
+        recentActivity: (auditLogs.logs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
           actorId: log.actorId,
@@ -116,8 +98,31 @@ export default function AnalystDashboardPage() {
         })),
       };
     },
-    enabled: Boolean(staff && ['ANALYST', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)),
+    enabled: hasAccess,
   });
+
+  if (!staff || !['ANALYST', 'SUPERADMIN', 'PLATFORM_ADMIN'].includes(staff.role)) {
+    return (
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
+        <h1 className="text-xl font-semibold">Analyst access required</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Only ANALYST, SUPERADMIN, or PLATFORM_ADMIN can access platform analytics.
+        </p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
+          Refresh access
+        </button>
+      </section>
+    );
+  }
+
+
 
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
@@ -152,75 +157,75 @@ export default function AnalystDashboardPage() {
           id: 'overview',
           label: 'Analytics Overview',
           icon: 'LayoutDashboard',
-          href: '/platform-admin/analyst',
+          href: '/analyst',
         },
         {
           id: 'user-analytics',
           label: 'User Analytics',
           icon: 'Users',
-          href: '/platform-admin/analyst/user-analytics',
+          href: '/users',
         },
         {
           id: 'tenant-analytics',
           label: 'Tenant Analytics',
           icon: 'Building',
-          href: '/platform-admin/analyst/tenant-analytics',
+          href: '/workspaces',
         },
         {
           id: 'growth-analytics',
           label: 'Growth Analytics',
           icon: 'TrendingUp',
-          href: '/platform-admin/analyst/growth-analytics',
+          href: '/analytics',
         },
         {
           id: 'api-analytics',
           label: 'API Analytics',
           icon: 'Monitor',
-          href: '/platform-admin/analyst/api-analytics',
+          href: '/metrics',
         },
         {
           id: 'performance-analytics',
           label: 'Performance Analytics',
           icon: 'Activity',
-          href: '/platform-admin/analyst/performance-analytics',
+          href: '/health',
         },
         {
           id: 'resource-analytics',
           label: 'Resource Analytics',
           icon: 'HardDrive',
-          href: '/platform-admin/analyst/resource-analytics',
+          href: '/metrics',
         },
         {
           id: 'usage-reports',
           label: 'Usage Reports',
           icon: 'FileText',
-          href: '/platform-admin/analyst/usage-reports',
+          href: '/analytics',
         },
         {
           id: 'audit-analytics',
           label: 'Audit Analytics',
           icon: 'Activity',
-          href: '/platform-admin/analyst/audit-analytics',
+          href: '/audit',
         },
         {
           id: 'custom-reports',
           label: 'Custom Reports',
           icon: 'BarChart',
-          href: '/platform-admin/analyst/custom-reports',
+          href: '/analytics',
         },
         {
           id: 'export-center',
           label: 'Export Center',
           icon: 'Download',
-          href: '/platform-admin/analyst/export-center',
+          href: '/analytics',
         },
       ]}
       breadcrumbs={[
-        { label: 'Platform Analytics', href: '/platform-admin/analyst' },
+        { label: 'Platform Analytics', href: '/analyst' },
         { label: 'Overview' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard
           title="Users (last 6 months)"
           value={totalUsers}
@@ -247,7 +252,7 @@ export default function AnalystDashboardPage() {
         />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
@@ -311,7 +316,7 @@ export default function AnalystDashboardPage() {
         </Paper>
       </Box>
 
-      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
@@ -386,7 +391,7 @@ export default function AnalystDashboardPage() {
         </Paper>
       </Box>
 
-      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
@@ -396,32 +401,21 @@ export default function AnalystDashboardPage() {
             stats.resourceConsumption.some((d) => d.used > 0) ? (
               <Box>
                 {stats.resourceConsumption.map((r) => {
-                  const pct = Math.min((r.used / Math.max(r.total, 1)) * 100, 100);
+                  const hasCapacity = typeof r.total === 'number' && r.total > 0;
+                  const pct = hasCapacity ? Math.min((r.used / r.total!) * 100, 100) : null;
                   return (
                     <Box key={r.name} className="py-2 border-b border-divider/50 last:border-0">
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                         <Typography variant="body2">{r.name}</Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {r.used} / {r.total}
+                          {hasCapacity ? `${r.used} / ${r.total}` : `${r.used.toLocaleString()} recorded`}
                         </Typography>
                       </Box>
-                      <Box
-                        sx={{
-                          height: 8,
-                          backgroundColor: 'action.hover',
-                          borderRadius: 4,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            height: '100%',
-                            backgroundColor: 'primary.main',
-                            borderRadius: 4,
-                            width: `${pct}%`,
-                          }}
-                        />
-                      </Box>
+                      {pct !== null && (
+                        <Box sx={{ height: 8, backgroundColor: 'action.hover', borderRadius: 4, overflow: 'hidden' }}>
+                          <Box sx={{ height: '100%', backgroundColor: 'primary.main', borderRadius: 4, width: `${pct}%` }} />
+                        </Box>
+                      )}
                     </Box>
                   );
                 })}

@@ -4,6 +4,7 @@ import { WorkspaceContext, PlatformStaffContext } from '../../../common/policy/p
 
 export const WORKSPACE_ROLE_KEY = 'required_workspace_role';
 export const PLATFORM_ROLE_KEY = 'required_platform_role';
+export const PLATFORM_ROLES_KEY = 'allowed_platform_roles';
 
 export interface AuthenticatedRequestUser {
   id: string;
@@ -55,3 +56,10 @@ export const RequireWorkspaceRole = (role: WorkspaceRole) =>
  */
 export const RequirePlatformRole = (role: PlatformStaffRoleType) =>
   SetMetadata(PLATFORM_ROLE_KEY, role);
+
+/**
+ * Restricts a route to an explicit set of platform roles (not a hierarchy).
+ * Use this for capabilities that higher-ranked roles do not automatically inherit.
+ */
+export const RequirePlatformRoles = (...roles: PlatformStaffRoleType[]) =>
+  SetMetadata(PLATFORM_ROLES_KEY, roles);

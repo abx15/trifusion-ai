@@ -56,30 +56,12 @@ interface PlatformStats {
 export default function SuperadminDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
 
-  if (!staff || staff.role !== 'SUPERADMIN') {
-    return (
-      <section
-        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
-        role="alert"
-      >
-        <h1 className="text-xl font-semibold">SUPERADMIN access required</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Only the SUPERADMIN role can access the global platform control center.
-        </p>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="mt-5 rounded-md border px-4 py-2 text-sm"
-        >
-          Refresh access
-        </button>
-      </section>
-    );
-  }
+  const hasAccess = staff?.role === 'SUPERADMIN';
 
   const statsQuery = useQuery<PlatformStats>({
-    queryKey: ['superadmin-dashboard-stats', staff.id],
+    queryKey: ['superadmin-dashboard-stats', staff?.id],
     queryFn: async () => {
+      if (!staff) throw new Error('Platform staff access is required.');
       const [metrics, users, workspaces, auditLogs] = await Promise.all([
         fetchJson('/platform/v1/metrics'),
         fetchJson('/platform/v1/users?limit=10'),
@@ -119,7 +101,7 @@ export default function SuperadminDashboardPage() {
           ownerEmail: w.owner?.email ?? null,
           memberCount: w._count?.members ?? 0,
         })),
-        recentActivity: (auditLogs ?? []).map((log: any) => ({
+        recentActivity: (auditLogs.logs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
           targetType: log.targetType,
@@ -130,8 +112,31 @@ export default function SuperadminDashboardPage() {
         })),
       };
     },
-    enabled: Boolean(staff && staff.role === 'SUPERADMIN'),
+    enabled: hasAccess,
   });
+
+  if (!staff || staff.role !== 'SUPERADMIN') {
+    return (
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
+        <h1 className="text-xl font-semibold">SUPERADMIN access required</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Only the SUPERADMIN role can access the global platform control center.
+        </p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
+          Refresh access
+        </button>
+      </section>
+    );
+  }
+
+
 
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
@@ -189,7 +194,7 @@ export default function SuperadminDashboardPage() {
         { label: 'Overview' },
       ]}
     >
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 3, mb: 4 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard
           title="Total Registered Users"
           value={stats.totalUsers}
@@ -219,7 +224,7 @@ export default function SuperadminDashboardPage() {
         />
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 2fr) minmax(280px, 1fr)' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
@@ -291,7 +296,7 @@ export default function SuperadminDashboardPage() {
         </Paper>
       </Box>
 
-      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <Box sx={{ mt: 4, display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
         <Paper sx={{ p: 3, height: '100%' }}>
           <Stack spacing={2}>
             <Typography variant="h6" sx={{ fontWeight: 700 }} gutterBottom>
