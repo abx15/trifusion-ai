@@ -80,7 +80,7 @@ TriFusion AI is a monorepo with four deployable services:
 | `AI_OPENAI_API_KEY` | OpenAI provider credential | If provider is OpenAI |
 | `AI_ANTHROPIC_API_KEY` | Anthropic provider credential | If provider is Anthropic |
 
-Use the Django service's own PostgreSQL URL where possible. Prisma's `?schema=public` parameter is stripped before Django connects; non-public schema values are rejected. Configure the Render health-check path as `/ready` so deployment readiness verifies the database and configured AI provider.
+Use the Django service's own PostgreSQL URL where possible. Prisma's `?schema=public` parameter is stripped before Django connects; non-public schema values are rejected. Configure the Django Render health-check path as `/ready` so deployment readiness verifies its database and configured AI provider. Configure the NestJS Render health-check path as `/api/v1/ready`; its liveness endpoint is `/api/v1/health`.
 
 **Redis note:** Redis is not currently provisioned in the user's deployment. Leave `REDIS_URL` unset until a Redis instance is available. Background AI jobs will remain unavailable; do not describe them as working until queue processing is verified.
 
