@@ -81,7 +81,9 @@ export default function SupportDashboardPage() {
           summary?.averageResolutionHours == null
             ? null
             : `${Number(summary.averageResolutionHours).toFixed(1)}h`,
-        recentTickets: ticketList.map((t: any) => ({
+        recentTickets: (viewFilter === 'assigned'
+          ? (assignedTicketListResponse.tickets ?? [])
+          : ticketList).map((t: any) => ({
           id: t.id,
           title: t.title,
           status: t.status,
