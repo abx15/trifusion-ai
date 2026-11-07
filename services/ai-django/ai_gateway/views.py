@@ -7,7 +7,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from django.db import connections
+from django.db import connections, router
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -99,7 +99,12 @@ def health_check(request):
 def ready_check(request):
     """Readiness probe: report unavailable dependencies instead of a false positive."""
     try:
-        connections["default"].ensure_connection()
+        database = connections["default"]
+        database.ensure_connection()
+        if router.allow_migrate(database.alias, "ai_gateway"):
+            with database.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
     except Exception:
         return Response(
             {
