@@ -45,7 +45,7 @@ interface TeamStats {
     action: string;
     entityType: string;
     createdAt: string;
-    actor: { email: string } | null;
+    actor?: { email: string } | null;
   }>;
   members: WorkspaceMember[];
 }
