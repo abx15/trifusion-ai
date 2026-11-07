@@ -23,8 +23,14 @@ except ImportError:
 def get_provider() -> Any:
     """Get the configured AI provider based on environment variables."""
     provider_name = os.environ.get("AI_PROVIDER", "mock").lower()
+    node_env = os.environ.get("NODE_ENV", "development").lower()
 
     if provider_name == "mock":
+        if node_env == "production":
+            raise RuntimeError(
+                "AI_PROVIDER=mock is not permitted in production. "
+                "Configure AI_PROVIDER=openai or AI_PROVIDER=anthropic."
+            )
         return MockProvider()
 
     if provider_name == "openai":
