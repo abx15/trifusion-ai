@@ -235,8 +235,13 @@ export class AnalyticsService {
       deletedAt: null,
       ...(scopedFilters.projectId ? { projectId: scopedFilters.projectId } : {}),
       ...(scopedFilters.assigneeId ? { assigneeId: scopedFilters.assigneeId } : {}),
-      ...(scopedFilters.taskStatus ? { status: scopedFilters.taskStatus } : {}),
-      status: { not: TaskStatus.DONE },
+      ...(scopedFilters.projectStatus
+        ? { project: { is: { status: scopedFilters.projectStatus } } }
+        : {}),
+      AND: [
+        { status: { not: TaskStatus.DONE } },
+        ...(scopedFilters.taskStatus ? [{ status: scopedFilters.taskStatus }] : []),
+      ],
       createdAt: { gte: range.start, lte: range.end },
     };
 
