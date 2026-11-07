@@ -19,7 +19,6 @@ import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { PlatformRolesGuard } from '../auth/guards/platform-roles.guard';
 import {
   RequireWorkspaceRole,
-  RequirePlatformRole,
   RequirePlatformRoles,
   CurrentUser,
   CurrentWorkspace,
