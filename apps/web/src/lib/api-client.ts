@@ -131,9 +131,19 @@ export const apiClient = {
         body: JSON.stringify(data),
       }),
     register: (data: RegisterRequest) =>
-      request<{ user: AuthUserResponse }>('auth/register', {
+      request<{ status: string; email: string; message: string }>('auth/register', {
         method: 'POST',
         body: JSON.stringify(data),
+      }),
+    verifyEmail: (data: { email: string; code: string }) =>
+      request<{ status: string; email: string; message: string }>('auth/verify-email', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    resendVerification: (email: string) =>
+      request<{ message: string }>('auth/resend-verification', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
       }),
     logout: () =>
       request<{ success: boolean; message: string }>('auth/logout', {
