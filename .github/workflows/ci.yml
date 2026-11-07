@@ -129,7 +129,11 @@ jobs:
       - name: Run test suite
         run: pnpm test
 
-      - name: Run Django test suite explicitly
+      - name: Run Django pytest regression suite
+        working-directory: services/ai-django
+        run: pytest tests -q
+
+      - name: Run Django app unit tests
         run: python services/ai-django/manage.py test ai_gateway --verbosity 2
 
   build:
