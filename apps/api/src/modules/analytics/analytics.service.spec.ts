@@ -64,6 +64,28 @@ describe('AnalyticsService role scoping', () => {
     }
   });
 
+  it('preserves workload status filters while excluding completed tasks', async () => {
+    policy.getWorkspaceContext.mockResolvedValue({ role: 'OWNER' });
+
+    await service.getTeamWorkload('workspace-1', 'owner-1', {
+      taskStatus: 'TODO' as any,
+      projectStatus: 'ACTIVE' as any,
+    });
+
+    expect(prisma.task.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspaceId: 'workspace-1',
+          project: { is: { status: 'ACTIVE' } },
+          AND: [
+            { status: { not: 'DONE' } },
+            { status: 'TODO' },
+          ],
+        }),
+      }),
+    );
+  });
+
   it('does not force an assignee filter on owner workspace analytics', async () => {
     policy.getWorkspaceContext.mockResolvedValue({ role: 'OWNER' });
 
