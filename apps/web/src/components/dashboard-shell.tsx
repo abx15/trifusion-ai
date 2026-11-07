@@ -58,7 +58,14 @@ export function DashboardShell({
 
   const activeItem = navItems.find((item) => pathname === item.href || pathname.startsWith(item.href + '/'));
 
-  if (isLoading || !isAuthenticated || !user) {
+  React.useEffect(() => {
+    if (!workspace || !isAuthenticated || isLoading) return;
+    if (workspace.role !== role) {
+      router.replace(getRoleDashboardPath(workspace.role));
+    }
+  }, [workspace, role, isAuthenticated, isLoading, router]);
+
+  if (isLoading || !isAuthenticated || !user || !workspace || workspace.role !== role) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center" role="status">
         <span className="loading-spinner" />
