@@ -108,14 +108,19 @@ describe('AuthService', () => {
       .mockResolvedValueOnce(storedToken)
       .mockResolvedValueOnce({ ...storedToken, isRevoked: true });
 
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 1 });
     const rotatedTokens = await service.refreshToken({ refreshToken: 'refresh-token' });
 
     expect(rotatedTokens).toEqual({
       accessToken: 'access-token',
       refreshToken: expect.any(String),
     });
-    expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith({
-      where: { id: 'refresh-1' },
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'refresh-1',
+        isRevoked: false,
+        expiresAt: { gt: expect.any(Date) },
+      },
       data: { isRevoked: true },
     });
     expect(mockPrisma.refreshToken.create).toHaveBeenCalledTimes(1);
@@ -123,7 +128,22 @@ describe('AuthService', () => {
     await expect(
       service.refreshToken({ refreshToken: 'refresh-token' }),
     ).rejects.toThrow('Invalid or expired refresh token');
-    expect(mockPrisma.refreshToken.update).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject concurrent refresh-token reuse when atomic revocation loses the race', async () => {
+    mockPrisma.refreshToken.findUnique.mockResolvedValueOnce({
+      id: 'refresh-race',
+      isRevoked: false,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: 'user-1', email: 'user@example.com', status: UserStatus.ACTIVE },
+    });
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      service.refreshToken({ refreshToken: 'refresh-token' }),
+    ).rejects.toThrow('Invalid or expired refresh token');
+    expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
   it('should throw BadRequestException on invalid reset token', async () => {
