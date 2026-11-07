@@ -101,7 +101,7 @@ export default function SuperadminDashboardPage() {
           ownerEmail: w.owner?.email ?? null,
           memberCount: w._count?.members ?? 0,
         })),
-        recentActivity: (auditLogs ?? []).map((log: any) => ({
+        recentActivity: (auditLogs.logs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
           targetType: log.targetType,
