@@ -134,7 +134,7 @@ export class PlatformHealthService {
   }
 
   /**
-   * Check AI service health
+   * Check AI service readiness, including its database and configured provider
    */
   private async checkAIService(): Promise<ServiceHealth> {
     const baseUrl = process.env.AI_SERVICE_URL;
@@ -144,7 +144,7 @@ export class PlatformHealthService {
 
     const start = Date.now();
     try {
-      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/health`, {
+      const response = await fetch(`${baseUrl.replace(/\/$/, '')}/ready`, {
         signal: AbortSignal.timeout(3000),
       });
       const latency = Date.now() - start;
