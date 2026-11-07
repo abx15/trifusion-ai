@@ -73,7 +73,7 @@ function VerifyEmailForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="verification-code">6-digit verification code</Label>
-              <Input id="verification-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code" value={code} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCode(event.target.value.replace(/\\D/g, '').slice(0, 6))} />
+              <Input id="verification-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code" value={code} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
