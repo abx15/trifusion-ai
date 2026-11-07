@@ -169,7 +169,7 @@ async function handle(request: NextRequest, { params }: RouteContext) {
     }
     if (refreshAttempted && !refreshed) clearSessionCookies(response);
 
-    if (pathText === 'auth/login' || pathText === 'auth/register') {
+    if (['auth/login', 'auth/register', 'auth/verify-email'].includes(pathText)) {
       const authResult: unknown = responseText ? JSON.parse(responseText) : null;
       if (
         authResult &&
