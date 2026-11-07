@@ -109,8 +109,15 @@ export class AnalyticsService {
     const taskScopeWhere = { ...taskWhere };
     delete taskScopeWhere.createdAt;
 
-    const [projectGroups, taskGroups, activeProjects, overdueTasks, upcomingDeadlines, teamWorkload] =
-      await Promise.all([
+    const [
+      projectGroups,
+      taskGroups,
+      activeProjects,
+      overdueTasks,
+      upcomingDeadlines,
+      teamWorkload,
+      assignedProjects,
+    ] = await Promise.all([
         this.prisma.project.groupBy({
           by: ['status'],
           where: projectWhere,
@@ -135,6 +142,15 @@ export class AnalyticsService {
           },
         }),
         this.getTeamWorkload(workspaceId, actorId, scopedFilters),
+        context.role === 'MEMBER'
+          ? this.prisma.project.count({
+              where: {
+                workspaceId,
+                deletedAt: null,
+                tasks: { some: { assigneeId: actorId, deletedAt: null } },
+              },
+            })
+          : Promise.resolve(0),
       ]);
 
     const totalTasks = taskGroups.reduce((sum, item) => sum + item._count._all, 0);
@@ -159,6 +175,7 @@ export class AnalyticsService {
       metricVersion: 'v1',
       metrics: {
         activeProjects,
+        assignedProjects,
         projectStatusCounts: projectGroups.map((entry) => ({ status: entry.status, count: entry._count._all })),
         taskStatusCounts: taskGroups.map((entry) => ({ status: entry.status, count: entry._count._all })),
         overdueTasks,
