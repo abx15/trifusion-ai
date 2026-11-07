@@ -28,9 +28,9 @@ TriFusion AI is a monorepo with four deployable services:
 | Python | >=3.12 | Django AI service |
 | pip | latest | Python package management |
 | PostgreSQL | 15+ | Primary database (Neon recommended) |
-| Redis | 7+ | BullMQ job queues, caching |
-| Docker | 25+ | Containerized deployment |
-| Docker Compose | 2.20+ | Multi-service orchestration |
+| Redis | 7+ | Optional Bull v4 AI job queue; the core API can run without it |
+| Docker | Optional | Containerized deployment only; not required for the current Render services |
+| Docker Compose | Optional | Local multi-service orchestration |
 
 ---
 
@@ -56,12 +56,31 @@ TriFusion AI is a monorepo with four deployable services:
 | `AUTH_REFRESH_EXPIRES_IN` | Refresh token lifetime | No | `7d` |
 | `WEB_URL` | Customer web origin | No | `https://app.trifusion.ai` |
 | `CORS_ORIGINS` | Allowed CORS origins (comma-separated) | No | `https://app.trifusion.ai,https://admin.trifusion.ai` |
-| `REDIS_URL` | Redis connection for BullMQ | No | `redis://redis:6379` |
+| `REDIS_URL` | Redis connection for Bull v4 AI jobs; without it the AI queue/worker is disabled while the core API remains available | No | `redis://redis:6379` |
 | `AI_SERVICE_URL` | Django AI backend URL | No | `http://django:8000` |
 | `AI_SERVICE_SHARED_SECRET` | HMAC secret for service tokens | No | `32-char-hmac-secret` |
 | `STRIPE_SECRET_KEY` | Stripe payment key | No | `sk_live_...` |
 | `SENDGRID_API_KEY` | Email service key | No | `SG....` |
 | `AWS_S3_BUCKET` | File storage bucket name | No | `trifusion-files` |
+
+### `services/ai-django/.env` (Required for the AI service)
+
+| Variable | Description | Required in production |
+|----------|-------------|-------------------------|
+| `DJANGO_ENV` | Django environment; use `production` on Render | Yes |
+| `DJANGO_DEBUG` | Must be `False` in production | Yes |
+| `DJANGO_SECRET_KEY` | Unique Django signing secret, at least 50 characters | Yes |
+| `DATABASE_URL` or `DJANGO_DATABASE_URL` | PostgreSQL connection for Django usage/quota tables | Yes |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated explicit Render hostnames | Yes |
+| `DJANGO_CORS_ALLOWED_ORIGINS` | Explicit browser origins; keep empty if browser does not call Django directly | As required |
+| `AI_SERVICE_SHARED_SECRET` | Must exactly match the NestJS value | Yes |
+| `AI_PROVIDER` | `openai` or `anthropic`; mock is development/test only | Yes |
+| `AI_OPENAI_API_KEY` | OpenAI provider credential | If provider is OpenAI |
+| `AI_ANTHROPIC_API_KEY` | Anthropic provider credential | If provider is Anthropic |
+
+Use the Django service's own PostgreSQL URL where possible. Prisma's `?schema=public` parameter is stripped before Django connects; non-public schema values are rejected. Configure the Render health-check path as `/ready` so deployment readiness verifies the database and configured AI provider.
+
+**Redis note:** Redis is not currently provisioned in the user's deployment. Leave `REDIS_URL` unset until a Redis instance is available. Background AI jobs will remain unavailable; do not describe them as working until queue processing is verified.
 
 ### `apps/web/.env` (Required)
 
