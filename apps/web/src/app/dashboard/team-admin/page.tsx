@@ -57,35 +57,24 @@ export default function TeamAdminDashboardPage() {
   const statsQuery = useQuery<TeamStats>({
     queryKey: ['team-admin-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [membersResult] = await Promise.all([
+      const [membersResult, overview, activity] = await Promise.all([
         apiClient.workspaces.members(workspace!.id),
+        apiClient.analytics.overview(workspace!.id),
+        apiClient.activity.list(workspace!.id, { limit: 10 }),
       ]);
-      const overview = await apiClient.graphql<{
-        workspaceOverview: {
-          projectCount: number;
-          taskCount: number;
-          overdueTasks: number;
-          projectStatusCounts: Array<{ status: string; count: number }>;
-          taskStatusCounts: Array<{ status: string; count: number }>;
-        };
-        tasks: { data: Array<{ id: string; title: string; status: string; dueDate: string | null }> };
-        recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-      }>('workspaceOverview', {
-        workspaceId: workspace!.id,
-        filters: {},
-      });
-
-      const completedTasks = overview.tasks.data.filter((t) => t.status === 'DONE').length;
+      const projectCount = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const taskCount = overview.metrics.taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const completedTasks = overview.metrics.taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
 
       return {
-        projectCount: overview.workspaceOverview.projectCount,
-        taskCount: overview.workspaceOverview.taskCount,
+        projectCount,
+        taskCount,
         memberCount: membersResult.length,
         completedTasks,
-        overdueTasks: overview.workspaceOverview.overdueTasks,
-        taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
-        projectStatusCounts: overview.workspaceOverview.projectStatusCounts,
-        recentActivity: overview.recentActivity.data,
+        overdueTasks: overview.metrics.overdueTasks,
+        taskStatusCounts: overview.metrics.taskStatusCounts,
+        projectStatusCounts: overview.metrics.projectStatusCounts,
+        recentActivity: activity.data,
         members: membersResult.filter((m) => m.role !== 'OWNER' && m.role !== 'TEAM_ADMIN'),
       };
     },
