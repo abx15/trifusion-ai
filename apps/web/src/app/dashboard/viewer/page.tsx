@@ -55,35 +55,27 @@ export default function ViewerDashboardPage() {
   const statsQuery = useQuery<ViewerStats>({
     queryKey: ['viewer-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [members, overview] = await Promise.all([
+      const [members, overview, activity] = await Promise.all([
         apiClient.workspaces.members(workspace!.id),
-        apiClient.graphql<{
-        workspaceOverview: {
-          projectCount: number;
-          taskCount: number;
-          projectStatusCounts: Array<{ status: string; count: number }>;
-          taskStatusCounts: Array<{ status: string; count: number }>;
-        };
-        tasks: { data: Array<{ id: string; status: string }> };
-        recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-        }>('workspaceOverview', {
-          workspaceId: workspace!.id,
-          filters: {},
-        }),
+        apiClient.analytics.overview(workspace!.id),
+        apiClient.activity.list(workspace!.id, { limit: 10 }),
       ]);
-
-      const completedTasks = overview.tasks.data.filter((t) => t.status === 'DONE').length;
-      const activeProjects = (overview.workspaceOverview.projectStatusCounts as Array<{ status: string; count: number }>).filter((p: { status: string; count: number }) => p.status === 'ACTIVE').reduce((sum: number, p: { count: number }) => sum + p.count, 0);
+      const projectStatusCounts = overview.metrics.projectStatusCounts;
+      const taskStatusCounts = overview.metrics.taskStatusCounts;
+      const projectCount = projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const taskCount = taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
+      const activeProjects = projectStatusCounts.find((item) => item.status === 'ACTIVE')?.count ?? 0;
 
       return {
-        projectCount: overview.workspaceOverview.projectCount,
-        taskCount: overview.workspaceOverview.taskCount,
+        projectCount,
+        taskCount,
         completedTasks,
         activeProjects,
         memberCount: members.length,
-        taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
-        projectStatusCounts: overview.workspaceOverview.projectStatusCounts,
-        recentActivity: overview.recentActivity.data,
+        taskStatusCounts,
+        projectStatusCounts,
+        recentActivity: activity.data,
       };
     },
     enabled: Boolean(workspace && Boolean(user?.id)),
