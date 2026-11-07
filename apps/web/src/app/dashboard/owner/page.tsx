@@ -118,7 +118,7 @@ export default function OwnerDashboardPage() {
       ]}
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
-        <KPICard title="Projects (30d)" value={stats.projectCount} icon={<FolderKanban style={{ fontSize: 20, color: '#003F5C' }} />} />
+        <KPICard title="Total Projects" value={stats.projectCount} icon={<FolderKanban style={{ fontSize: 20, color: '#003F5C' }} />} />
         <KPICard title="Tasks (30d)" value={stats.taskCount} icon={<CheckSquare style={{ fontSize: 20, color: '#58508D' }} />} />
         <KPICard title="Team Members" value={stats.memberCount}  icon={<UsersIcon style={{ fontSize: 20, color: '#8A508F' }} />} />
         <KPICard title="Overdue Tasks" value={stats.overdueTasks} trend={{ value: stats.overdueTasks > 0 ? 'requires attention' : 'all on track', positive: stats.overdueTasks === 0 }} icon={<Activity style={{ fontSize: 20, color: '#FF6361' }} />} />
