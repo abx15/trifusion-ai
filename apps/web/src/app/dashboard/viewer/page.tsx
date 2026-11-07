@@ -65,7 +65,7 @@ export default function ViewerDashboardPage() {
       const projectCount = projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
       const taskCount = taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
       const completedTasks = taskStatusCounts.find((item) => item.status === 'DONE')?.count ?? 0;
-      const activeProjects = projectStatusCounts.find((item) => item.status === 'ACTIVE')?.count ?? 0;
+      const activeProjects = overview.metrics.activeProjects;
 
       return {
         projectCount,
@@ -112,8 +112,8 @@ export default function ViewerDashboardPage() {
     >
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 3, mb: 4 }}>
         <KPICard title="Active Projects" value={stats.activeProjects} icon={<FolderKanban style={{ fontSize: 20, color: '#003F5C' }} />} />
-        <KPICard title="Total Tasks" value={stats.taskCount} icon={<CheckSquare style={{ fontSize: 20, color: '#58508D' }} />} />
-        <KPICard title="Completed Tasks" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.taskCount, 1)) * 100)}%`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
+        <KPICard title="Tasks (30d)" value={stats.taskCount} icon={<CheckSquare style={{ fontSize: 20, color: '#58508D' }} />} />
+        <KPICard title="Completed Tasks (30d)" value={stats.completedTasks} trend={{ value: `${Math.round((stats.completedTasks / Math.max(stats.taskCount, 1)) * 100)}%`, positive: true }} icon={<CheckSquare style={{ fontSize: 20, color: '#10B981' }} />} />
         <KPICard title="Team Members" value={stats.memberCount} subtitle="Read-only access" icon={<UsersIcon style={{ fontSize: 20, color: '#64748B' }} />} />
       </Box>
 
