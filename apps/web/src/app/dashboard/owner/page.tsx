@@ -59,36 +59,25 @@ export default function OwnerDashboardPage() {
   const statsQuery = useQuery<WorkspaceStats>({
     queryKey: ['owner-dashboard-stats', user?.id, workspace?.id],
     queryFn: async () => {
-      const [membersResult, invitationsResult] = await Promise.all([
+      const [membersResult, invitationsResult, overview, activity] = await Promise.all([
         apiClient.workspaces.members(workspace!.id),
         apiClient.workspaces.invitations(workspace!.id),
+        apiClient.analytics.overview(workspace!.id),
+        apiClient.activity.list(workspace!.id, { limit: 10 }),
       ]);
-      const overview = await apiClient.graphql<{
-        workspaceOverview: {
-          projectCount: number;
-          taskCount: number;
-          overdueTasks: number;
-          upcomingDeadlines: number;
-          projectStatusCounts: Array<{ status: string; count: number }>;
-          taskStatusCounts: Array<{ status: string; count: number }>;
-        };
-        tasks: { data: Array<{ id: string; title: string; status: string; dueDate: string | null }> };
-        recentActivity: { data: Array<{ id: string; action: string; entityType: string; createdAt: string; actor: { email: string } | null }> };
-      }>('workspaceOverview', {
-        workspaceId: workspace!.id,
-        filters: {},
-      });
+      const projectCount = overview.metrics.projectStatusCounts.reduce((sum, item) => sum + item.count, 0);
+      const taskCount = overview.metrics.taskStatusCounts.reduce((sum, item) => sum + item.count, 0);
 
       return {
-        projectCount: overview.workspaceOverview.projectCount,
-        taskCount: overview.workspaceOverview.taskCount,
+        projectCount,
+        taskCount,
         memberCount: membersResult.length,
         pendingInvitations: invitationsResult.filter((i) => i.status === 'PENDING').length,
-        overdueTasks: overview.workspaceOverview.overdueTasks,
-        upcomingDeadlines: overview.workspaceOverview.upcomingDeadlines,
-        taskStatusCounts: overview.workspaceOverview.taskStatusCounts,
-        projectStatusCounts: overview.workspaceOverview.projectStatusCounts,
-        recentActivity: overview.recentActivity.data,
+        overdueTasks: overview.metrics.overdueTasks,
+        upcomingDeadlines: overview.metrics.upcomingDeadlines,
+        taskStatusCounts: overview.metrics.taskStatusCounts,
+        projectStatusCounts: overview.metrics.projectStatusCounts,
+        recentActivity: activity.data,
         members: membersResult,
       };
     },
