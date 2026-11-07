@@ -13,6 +13,8 @@ const envSchema = z.object({
   AUTH_REFRESH_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGINS: z.string().default('http://localhost:3000,http://localhost:3002'),
   REDIS_URL: z.string().optional(),
+  AI_SERVICE_URL: z.string().url().optional(),
+  AI_SERVICE_SHARED_SECRET: z.string().optional(),
 });
 
 const validatedEnvSchema = envSchema.extend({
@@ -50,6 +52,12 @@ export function validateEnvironment(config: Record<string, unknown>): ValidatedE
     }
     if (!config.DIRECT_URL || !env.DIRECT_URL) {
       throw new Error('DIRECT_URL must be explicitly configured in production.');
+    }
+    if (!env.AI_SERVICE_URL) {
+      throw new Error('AI_SERVICE_URL must be explicitly configured in production.');
+    }
+    if (!env.AI_SERVICE_SHARED_SECRET || env.AI_SERVICE_SHARED_SECRET.length < 32) {
+      throw new Error('AI_SERVICE_SHARED_SECRET must be configured with at least 32 characters in production.');
     }
     if (env.AUTH_SECRET === DEVELOPMENT_AUTH_SECRET || env.AUTH_SECRET.length < 32) {
       throw new Error('AUTH_SECRET must be a unique secret with at least 32 characters in production.');
