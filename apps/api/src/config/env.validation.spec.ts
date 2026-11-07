@@ -13,14 +13,14 @@ describe('validateEnvironment production safeguards', () => {
   });
 
   it('rejects a missing production DATABASE_URL instead of using the dev fallback', () => {
-    const { DATABASE_URL: _databaseUrl, ...withoutDatabase } = validProductionEnv;
+    const withoutDatabase = { ...validProductionEnv, DATABASE_URL: undefined };
     expect(() => validateEnvironment(withoutDatabase)).toThrow(
       'DATABASE_URL must be explicitly configured in production.',
     );
   });
 
   it('rejects a missing DIRECT_URL in production', () => {
-    const { DIRECT_URL: _directUrl, ...withoutDirectUrl } = validProductionEnv;
+    const withoutDirectUrl = { ...validProductionEnv, DIRECT_URL: undefined };
     expect(() => validateEnvironment(withoutDirectUrl)).toThrow(
       'DIRECT_URL must be explicitly configured in production.',
     );
