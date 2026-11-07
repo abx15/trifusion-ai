@@ -53,7 +53,7 @@ interface MemberStats {
     action: string;
     entityType: string;
     createdAt: string;
-    actor: { email: string } | null;
+    actor?: { email: string } | null;
   }>;
 }
 
@@ -70,7 +70,18 @@ export default function MemberDashboardPage() {
         apiClient.activity.list(workspace!.id, { limit: 10 }),
       ]);
       const taskStatusCounts = overview.metrics.taskStatusCounts;
-      const assignedTasks = tasks.data;
+      const recentTasks = tasks.data.map((task) => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        dueDate: task.dueDate instanceof Date
+          ? task.dueDate.toISOString()
+          : task.dueDate ?? null,
+        project: task.project
+          ? { id: task.project.id, name: task.project.name }
+          : null,
+      }));
       const pendingTasks = taskStatusCounts
         .filter((item) => ['TODO', 'IN_PROGRESS', 'REVIEW'].includes(item.status))
         .reduce((sum, item) => sum + item.count, 0);
@@ -85,7 +96,7 @@ export default function MemberDashboardPage() {
         upcomingDeadlines: overview.metrics.upcomingDeadlines,
         assignedProjects,
         taskStatusCounts,
-        recentTasks: assignedTasks,
+        recentTasks,
         recentActivity: activity.data,
       };
     },
