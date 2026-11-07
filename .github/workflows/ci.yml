@@ -90,10 +90,10 @@ jobs:
           --health-retries 5
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
-      DIRECT_URL: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
-      DATABASE_URL_TEST: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
-      DIRECT_URL_TEST: postgresql://trifusion:trifusion@localhost:5432/trifusion_test?schema=public
+      DATABASE_URL: postgresql://trifusion:trifusion@localhost:5432/trifusion_test
+      DIRECT_URL: postgresql://trifusion:trifusion@localhost:5432/trifusion_test
+      DATABASE_URL_TEST: postgresql://trifusion:trifusion@localhost:5432/trifusion_test
+      DIRECT_URL_TEST: postgresql://trifusion:trifusion@localhost:5432/trifusion_test
       AUTH_SECRET: ci-test-secret-key-at-least-16-chars
     steps:
       - name: Checkout
