@@ -130,6 +130,7 @@ export interface Task {
   createdAt: string | Date;
   updatedAt: string | Date;
   deletedAt?: string | Date | null;
+  project?: Pick<Project, 'id' | 'name'> | null;
 }
 
 export interface ActivityEvent {
@@ -140,6 +141,7 @@ export interface ActivityEvent {
   entityId: string;
   action: string;
   metadata?: unknown;
+  actor?: { id: string; email: string } | null;
   createdAt: string | Date;
 }
 

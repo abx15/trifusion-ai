@@ -69,11 +69,11 @@ function VerifyEmailForm() {
             {message && <p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{message}</p>}
             <div className="space-y-2">
               <Label htmlFor="verify-email">Email address</Label>
-              <Input id="verify-email" type="email" required autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+              <Input id="verify-email" type="email" required autoComplete="email" value={email} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setEmail(event.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="verification-code">6-digit verification code</Label>
-              <Input id="verification-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value.replace(/\\D/g, '').slice(0, 6))} />
+              <Input id="verification-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code" value={code} onChange={(event: React.ChangeEvent<HTMLInputElement>) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} />
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">

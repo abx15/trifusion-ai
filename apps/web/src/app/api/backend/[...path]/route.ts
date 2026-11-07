@@ -183,7 +183,10 @@ async function handle(request: NextRequest, { params }: RouteContext) {
         typeof authResult.tokens.accessToken === 'string' &&
         typeof authResult.tokens.refreshToken === 'string'
       ) {
-        const tokens = authResult.tokens;
+        const tokens = authResult.tokens as {
+          accessToken: string;
+          refreshToken: string;
+        };
         const safePayload = {
           status: 'status' in authResult ? authResult.status : 'verified',
           email: 'email' in authResult ? authResult.email : '',
@@ -203,7 +206,10 @@ async function handle(request: NextRequest, { params }: RouteContext) {
         typeof authResult.tokens.accessToken === 'string' &&
         typeof authResult.tokens.refreshToken === 'string'
       ) {
-        const tokens = authResult.tokens;
+        const tokens = authResult.tokens as {
+          accessToken: string;
+          refreshToken: string;
+        };
         const accessToken = tokens.accessToken;
         const refreshToken = tokens.refreshToken;
         if (typeof accessToken !== 'string' || typeof refreshToken !== 'string') {

@@ -104,9 +104,20 @@ export class AnalyticsService {
     const range = this.normalizeDateRange(scopedFilters);
     const projectWhere = this.buildProjectWhere(workspaceId, scopedFilters);
     const taskWhere = this.buildTaskWhere(workspaceId, range, scopedFilters);
+    // Reporting charts use the selected creation period, but overdue and upcoming
+    // work must include older tasks as well.
+    const taskScopeWhere = { ...taskWhere };
+    delete taskScopeWhere.createdAt;
 
-    const [projectGroups, taskGroups, activeProjects, overdueTasks, upcomingDeadlines, teamWorkload] =
-      await Promise.all([
+    const [
+      projectGroups,
+      taskGroups,
+      activeProjects,
+      overdueTasks,
+      upcomingDeadlines,
+      teamWorkload,
+      assignedProjects,
+    ] = await Promise.all([
         this.prisma.project.groupBy({
           by: ['status'],
           where: projectWhere,
@@ -118,19 +129,28 @@ export class AnalyticsService {
           _count: { _all: true },
         }),
         this.prisma.project.count({
-          where: { ...projectWhere, status: { in: [ProjectStatus.PLANNING, ProjectStatus.ACTIVE] } },
+          where: { ...projectWhere, status: ProjectStatus.ACTIVE },
         }),
         this.prisma.task.count({
-          where: { ...taskWhere, dueDate: { lt: new Date() }, status: { not: TaskStatus.DONE } },
+          where: { ...taskScopeWhere, dueDate: { lt: new Date() }, status: { not: TaskStatus.DONE } },
         }),
         this.prisma.task.count({
           where: {
-            ...taskWhere,
+            ...taskScopeWhere,
             dueDate: { gte: new Date(), lt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
             status: { not: TaskStatus.DONE },
           },
         }),
         this.getTeamWorkload(workspaceId, actorId, scopedFilters),
+        context.role === 'MEMBER'
+          ? this.prisma.project.count({
+              where: {
+                workspaceId,
+                deletedAt: null,
+                tasks: { some: { assigneeId: actorId, deletedAt: null } },
+              },
+            })
+          : Promise.resolve(0),
       ]);
 
     const totalTasks = taskGroups.reduce((sum, item) => sum + item._count._all, 0);
@@ -155,6 +175,7 @@ export class AnalyticsService {
       metricVersion: 'v1',
       metrics: {
         activeProjects,
+        assignedProjects,
         projectStatusCounts: projectGroups.map((entry) => ({ status: entry.status, count: entry._count._all })),
         taskStatusCounts: taskGroups.map((entry) => ({ status: entry.status, count: entry._count._all })),
         overdueTasks,
