@@ -65,11 +65,22 @@ export function DashboardShell({
     }
   }, [workspace, role, isAuthenticated, isLoading, router]);
 
-  if (isLoading || !isAuthenticated || !user || !workspace || workspace.role !== role) {
+  if (isLoading || !isAuthenticated || !user || (workspace && workspace.role !== role)) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center" role="status">
         <span className="loading-spinner" />
-        <span className="ml-2">Loading dashboard…</span>
+        <span className="ml-2">Verifying workspace access…</span>
+      </div>
+    );
+  }
+
+  if (!workspace) {
+    return (
+      <div className="mx-auto mt-12 max-w-xl rounded-xl border bg-white p-6 text-center" role="alert">
+        <h2 className="text-lg font-semibold">Workspace access unavailable</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {selectionError ?? 'No active workspace is available for this account.'}
+        </p>
       </div>
     );
   }
