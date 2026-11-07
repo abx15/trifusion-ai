@@ -47,30 +47,11 @@ interface PlatformAdminStats {
 export default function PlatformAdminDashboardPage() {
   const { staff, refresh } = usePlatformStaff();
 
-  if (!staff || !['PLATFORM_ADMIN', 'SUPERADMIN'].includes(staff.role)) {
-    return (
-      <section
-        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
-        role="alert"
-      >
-        <h1 className="text-xl font-semibold">Platform Admin access required</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Only PLATFORM_ADMIN or SUPERADMIN can access the operations dashboard.
-        </p>
-        <button
-          type="button"
-          onClick={() => void refresh()}
-          className="mt-5 rounded-md border px-4 py-2 text-sm"
-        >
-          Refresh access
-        </button>
-      </section>
-    );
-  }
 
   const statsQuery = useQuery<PlatformAdminStats>({
-    queryKey: ['platform-admin-dashboard-stats', staff.id],
+    queryKey: ['platform-admin-dashboard-stats', staff?.id ?? 'anonymous'],
     queryFn: async () => {
+      if (!staff) throw new Error('Platform staff session is unavailable.');
       const [metrics, workspaces, users, auditLogs] = await Promise.all([
         fetchJson('/platform/v1/metrics'),
         fetchJson('/platform/v1/workspaces?limit=10'),
@@ -107,6 +88,27 @@ export default function PlatformAdminDashboardPage() {
     },
     enabled: Boolean(staff && ['PLATFORM_ADMIN', 'SUPERADMIN'].includes(staff.role)),
   });
+
+  if (!staff || !['PLATFORM_ADMIN', 'SUPERADMIN'].includes(staff.role)) {
+    return (
+      <section
+        className="mx-auto mt-20 max-w-xl rounded-lg border bg-white p-8 text-center"
+        role="alert"
+      >
+        <h1 className="text-xl font-semibold">Platform Admin access required</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          Only PLATFORM_ADMIN or SUPERADMIN can access the operations dashboard.
+        </p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-5 rounded-md border px-4 py-2 text-sm"
+        >
+          Refresh access
+        </button>
+      </section>
+    );
+  }
 
   const loading = statsQuery.isPending;
   const error = statsQuery.error;
