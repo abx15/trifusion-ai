@@ -172,6 +172,26 @@ async function handle(request: NextRequest, { params }: RouteContext) {
     if (['auth/login', 'auth/register', 'auth/verify-email'].includes(pathText)) {
       const authResult: unknown = responseText ? JSON.parse(responseText) : null;
       if (
+        pathText === 'auth/verify-email' &&
+        authResult &&
+        typeof authResult === 'object' &&
+        'tokens' in authResult &&
+        authResult.tokens &&
+        typeof authResult.tokens === 'object' &&
+        'accessToken' in authResult.tokens &&
+        'refreshToken' in authResult.tokens &&
+        typeof authResult.tokens.accessToken === 'string' &&
+        typeof authResult.tokens.refreshToken === 'string'
+      ) {
+        const tokens = authResult.tokens;
+        const safePayload = {
+          status: 'status' in authResult ? authResult.status : 'verified',
+          email: 'email' in authResult ? authResult.email : '',
+          message: 'message' in authResult ? authResult.message : 'Email verified successfully.',
+        };
+        response = NextResponse.json(safePayload, { status: upstream.status });
+        setSessionCookies(response, tokens.accessToken, tokens.refreshToken);
+      } else if (
         authResult &&
         typeof authResult === 'object' &&
         'user' in authResult &&
