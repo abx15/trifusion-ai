@@ -25,7 +25,7 @@ interface PlatformStaffState {
 const PlatformStaffContext = createContext<PlatformStaffState | undefined>(undefined);
 
 async function loadStaff(): Promise<{ staff: PlatformStaff | null; statusCode: number | null }> {
-  const response = await fetch('/api/backend/platform/staff/me', {
+  const response = await fetch('/api/backend/platform/v1/me', {
     credentials: 'same-origin',
     cache: 'no-store',
     headers: { Accept: 'application/json' },
