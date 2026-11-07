@@ -78,7 +78,7 @@ export default function PlatformAdminDashboardPage() {
           status: u.status,
           createdAt: u.createdAt,
         })),
-        recentActivity: (auditLogs ?? []).map((log: any) => ({
+        recentActivity: (auditLogs.logs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
           targetType: log.targetType,
