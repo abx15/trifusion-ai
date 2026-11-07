@@ -643,9 +643,7 @@ export class AuthService {
       metadata: { email: user.email, emailVerified: false, action: 'resend_verification' },
     });
 
-    return {
-      message: 'Verification code resent. Please check your email.',
-    };
+    return genericResponse;
   }
 
   async acceptInvitation(token: string, userId: string, meta?: RequestMeta) {
