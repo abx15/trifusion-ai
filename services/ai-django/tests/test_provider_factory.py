@@ -5,6 +5,7 @@ from providers.providers import MockProvider
 
 
 def test_mock_provider_remains_available_in_development(monkeypatch):
+    monkeypatch.delenv("DJANGO_ENV", raising=False)
     monkeypatch.setenv("NODE_ENV", "development")
     monkeypatch.setenv("AI_PROVIDER", "mock")
 
@@ -12,6 +13,7 @@ def test_mock_provider_remains_available_in_development(monkeypatch):
 
 
 def test_mock_provider_is_rejected_in_production(monkeypatch):
+    monkeypatch.delenv("DJANGO_ENV", raising=False)
     monkeypatch.setenv("NODE_ENV", "production")
     monkeypatch.setenv("AI_PROVIDER", "mock")
 
@@ -20,6 +22,7 @@ def test_mock_provider_is_rejected_in_production(monkeypatch):
 
 
 def test_unknown_provider_is_rejected(monkeypatch):
+    monkeypatch.delenv("DJANGO_ENV", raising=False)
     monkeypatch.setenv("NODE_ENV", "development")
     monkeypatch.setenv("AI_PROVIDER", "unknown-provider")
 
