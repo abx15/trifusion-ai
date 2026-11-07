@@ -427,6 +427,10 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto, meta?: RequestMeta) {
+    if (!this.emailService.isConfigured()) {
+      throw new ServiceUnavailableException('Email delivery is not configured.');
+    }
+
     const normalizedEmail = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -444,6 +448,22 @@ export class AuthService {
           expiresAt,
         },
       });
+
+      const webUrl = process.env.WEB_URL || 'http://localhost:3000';
+      const resetUrl = new URL('/reset-password', webUrl);
+      resetUrl.searchParams.set('token', resetToken);
+      try {
+        await this.emailService.send(
+          user.email,
+          'Reset your TriFusion AI password',
+          `We received a request to reset your password. Use this link within one hour: ${resetUrl.toString()} If you did not request this, you can ignore this email.`,
+        );
+      } catch (error) {
+        this.logger.error(
+          'Password reset email delivery failed.',
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
 
       await this.auditLogService.log({
         actorId: user.id,
@@ -588,6 +608,10 @@ export class AuthService {
   }
 
   async resendVerification(dto: ResendVerificationDto, meta?: RequestMeta) {
+    if (!this.emailService.isConfigured()) {
+      throw new ServiceUnavailableException('Email delivery is not configured.');
+    }
+
     const normalizedEmail = dto.email.trim().toLowerCase();
 
     const user = await this.prisma.user.findUnique({
@@ -598,6 +622,9 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('User account is disabled');
+    }
     if (user.isEmailVerified) {
       throw new BadRequestException('Email is already verified');
     }
