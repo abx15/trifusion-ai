@@ -90,7 +90,7 @@ export default function AnalystDashboardPage() {
         performanceTrends,
         resourceConsumption,
         unavailableMetrics: metrics.unavailableMetrics ?? [],
-        recentActivity: (auditLogs ?? []).map((log: any) => ({
+        recentActivity: (auditLogs.logs ?? []).map((log: any) => ({
           id: log.id,
           action: log.action,
           actorId: log.actorId,
