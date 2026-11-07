@@ -22,9 +22,15 @@ if NODE_ENV == "production" and DEBUG:
 
 if not DEBUG:
     if SECRET_KEY == DEFAULT_DEV_KEY or len(SECRET_KEY) < 50:
-        raise ValueError("DJANGO_SECRET_KEY must be a unique secret of at least 50 characters when DEBUG=False.")
+        raise ValueError(
+            "DJANGO_SECRET_KEY must be a unique secret of at least "
+            "50 characters when DEBUG=False."
+        )
     if AI_SERVICE_SHARED_SECRET == DEFAULT_SERVICE_SECRET or len(AI_SERVICE_SHARED_SECRET) < 32:
-        raise ValueError("AI_SERVICE_SHARED_SECRET must be a unique secret of at least 32 characters when DEBUG=False.")
+        raise ValueError(
+            "AI_SERVICE_SHARED_SECRET must be a unique secret of at least "
+            "32 characters when DEBUG=False."
+        )
 
 DEFAULT_ALLOWED_HOSTS = "localhost,127.0.0.1,0.0.0.0"
 ALLOWED_HOSTS = [
@@ -71,7 +77,10 @@ ASGI_APPLICATION = "ai_service.asgi.application"
 
 database_url = os.environ.get("DATABASE_URL") or os.environ.get("DJANGO_DATABASE_URL")
 if NODE_ENV == "production" and not database_url:
-    raise ValueError("DATABASE_URL (or DJANGO_DATABASE_URL) is required in production; SQLite fallback is disabled.")
+    raise ValueError(
+        "DATABASE_URL (or DJANGO_DATABASE_URL) is required in production; "
+        "SQLite fallback is disabled."
+    )
 if database_url:
     if NODE_ENV == "production" and not database_url.startswith(("postgres://", "postgresql://")):
         raise ValueError("Production DATABASE_URL must use PostgreSQL.")

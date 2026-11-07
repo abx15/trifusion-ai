@@ -19,6 +19,13 @@ describe('validateEnvironment production safeguards', () => {
     );
   });
 
+  it('rejects a missing DIRECT_URL in production', () => {
+    const { DIRECT_URL: _directUrl, ...withoutDirectUrl } = validProductionEnv;
+    expect(() => validateEnvironment(withoutDirectUrl)).toThrow(
+      'DIRECT_URL must be explicitly configured in production.',
+    );
+  });
+
   it('rejects the development auth secret in production', () => {
     expect(() =>
       validateEnvironment({
@@ -32,7 +39,6 @@ describe('validateEnvironment production safeguards', () => {
     expect(() =>
       validateEnvironment({
         NODE_ENV: 'development',
-        DIRECT_URL: 'postgresql://localhost/dev',
       }),
     ).not.toThrow();
   });

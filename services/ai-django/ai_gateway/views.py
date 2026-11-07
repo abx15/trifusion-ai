@@ -99,7 +99,11 @@ def health_check(request):
 def ready_check(request):
     """Readiness probe: report unavailable dependencies instead of a false positive."""
     try:
-        connections["default"].ensure_connection()
+        database = connections["default"]
+        database.ensure_connection()
+        with database.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
     except Exception:
         return Response(
             {

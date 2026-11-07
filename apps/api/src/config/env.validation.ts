@@ -16,8 +16,14 @@ const envSchema = z.object({
 });
 
 const validatedEnvSchema = envSchema.extend({
-  DATABASE_URL: z.string().url('DATABASE_URL must be a PostgreSQL connection URL'),
-  DIRECT_URL: z.string().url('DIRECT_URL must be a PostgreSQL connection URL'),
+  DATABASE_URL: z
+    .string()
+    .url('DATABASE_URL must be a PostgreSQL connection URL')
+    .default('postgresql://postgres:postgres@localhost:5432/trifusion_dev'),
+  DIRECT_URL: z
+    .string()
+    .url('DIRECT_URL must be a PostgreSQL connection URL')
+    .optional(),
   DATABASE_URL_TEST: z.string().url().optional(),
   DIRECT_URL_TEST: z.string().url().optional(),
   DATABASE_URL_SEED: z.string().url().optional(),
@@ -41,6 +47,9 @@ export function validateEnvironment(config: Record<string, unknown>): ValidatedE
   if (env.NODE_ENV === 'production') {
     if (!config.DATABASE_URL) {
       throw new Error('DATABASE_URL must be explicitly configured in production.');
+    }
+    if (!config.DIRECT_URL || !env.DIRECT_URL) {
+      throw new Error('DIRECT_URL must be explicitly configured in production.');
     }
     if (env.AUTH_SECRET === DEVELOPMENT_AUTH_SECRET || env.AUTH_SECRET.length < 32) {
       throw new Error('AUTH_SECRET must be a unique secret with at least 32 characters in production.');
