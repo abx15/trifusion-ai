@@ -219,3 +219,18 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* Responsive guardrails shared by every route in this app. */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+*, *::before, *::after { box-sizing: border-box; }
+img, video, canvas, svg { max-width: 100%; }
+main, section, article, [role="main"] { min-width: 0; }
+@media (max-width: 640px) {
+  pre, code { overflow-wrap: anywhere; }
+  table { max-width: 100%; }
+}
