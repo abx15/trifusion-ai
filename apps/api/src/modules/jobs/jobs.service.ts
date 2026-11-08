@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
@@ -5,9 +6,15 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class JobsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(workspaceId: string | null, type: string, idempotencyKey?: string) {
+  async create(workspaceId: string, type: string, idempotencyKey?: string) {
     return this.prisma.jobRecord.create({
-      data: { jobId: `job_${Date.now()}`, workspaceId: workspaceId ?? undefined, type, status: 'queued', idempotencyKey },
+      data: {
+        jobId: `job_${Date.now()}_${randomUUID()}`,
+        workspaceId,
+        type,
+        status: 'queued',
+        idempotencyKey,
+      },
     });
   }
 
@@ -18,7 +25,11 @@ export class JobsService {
     });
   }
 
-  async list(workspaceId?: string) {
-    return this.prisma.jobRecord.findMany({ where: workspaceId ? { workspaceId } : {}, orderBy: { createdAt: 'desc' }, take: 50 });
+  async list(workspaceId: string) {
+    return this.prisma.jobRecord.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
   }
 }
