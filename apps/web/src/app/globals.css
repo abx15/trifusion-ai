@@ -185,3 +185,9 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Global layout safety: prevent viewport overflow while keeping wide data tables scrollable. */
+html, body { width: 100%; max-width: 100%; overflow-x: clip; }
+*, *::before, *::after { box-sizing: border-box; }
+img, video, canvas, svg { max-width: 100%; }
+#root, main, section, article { min-width: 0; }
