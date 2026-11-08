@@ -486,32 +486,37 @@ export class AuthService {
 
   async resetPassword(dto: ResetPasswordDto, meta?: RequestMeta) {
     const tokenHash = this.hashToken(dto.token);
-
     const resetRecord = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash },
       include: { user: true },
     });
 
-    if (!resetRecord || resetRecord.usedAt || resetRecord.expiresAt < new Date()) {
+    if (!resetRecord || resetRecord.usedAt || resetRecord.expiresAt <= new Date()) {
       throw new BadRequestException('Invalid or expired password reset token');
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    const now = new Date();
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    // Claim the token atomically so concurrent reset requests cannot both succeed.
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: { id: resetRecord.id, usedAt: null, expiresAt: { gt: now } },
+        data: { usedAt: now },
+      });
+      if (claimed.count !== 1) {
+        throw new BadRequestException('Invalid or expired password reset token');
+      }
+
+      await tx.user.update({
         where: { id: resetRecord.userId },
         data: { passwordHash },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: resetRecord.id },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.refreshToken.updateMany({
+      });
+      await tx.refreshToken.updateMany({
         where: { userId: resetRecord.userId },
         data: { isRevoked: true },
-      }),
-    ]);
+      });
+    });
 
     await this.auditLogService.log({
       actorId: resetRecord.userId,
@@ -523,11 +528,8 @@ export class AuthService {
       userAgent: meta?.userAgent,
     });
 
-    return {
-      message: 'Password reset successfully. You may now sign in.',
-    };
+    return { message: 'Password reset successfully. You may now sign in.' };
   }
-
   async verifyEmail(dto: VerifyEmailDto, meta?: RequestMeta, res?: Response) {
     const normalizedEmail = dto.email.trim().toLowerCase();
 
