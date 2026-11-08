@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 import uuid
 from datetime import datetime, timezone
@@ -435,9 +436,9 @@ def workspace_assistant_stream(request):
 
             for chunk in stream:
                 if chunk.get("type") == "token":
-                    yield f"data: {chunk}\n\n"
+                    yield f"data: {json.dumps(chunk)}\n\n"
                 elif chunk.get("type") == "error":
-                    yield f"data: {chunk}\n\n"
+                    yield f"data: {json.dumps(chunk)}\n\n"
                     break
                 elif chunk.get("type") == "done":
                     # Track usage for streaming
@@ -453,10 +454,10 @@ def workspace_assistant_stream(request):
                         },
                         request_id=request_id,
                     )
-                    yield f"data: {chunk}\n\n"
+                    yield f"data: {json.dumps(chunk)}\n\n"
                     break
         except Exception as e:
-            yield f"data: {{'type': 'error', 'error': '{str(e)}'}}\n\n"
+            yield f"data: {json.dumps({'type': 'error', 'error': 'The assistant stream failed.'})}\n\n"
 
     response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
     response["X-Request-Id"] = request_id
