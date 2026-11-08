@@ -207,6 +207,43 @@ describe('AuthService', () => {
     ).rejects.toThrow('Invalid or expired password reset token');
   });
 
+  it('should atomically consume a valid password reset token', async () => {
+    mockPrisma.passwordResetToken.findUnique.mockResolvedValueOnce({
+      id: 'reset-1',
+      userId: 'user-1',
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: 'user-1' },
+    });
+    mockPrisma.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 1 });
+    mockPrisma.user.update.mockResolvedValueOnce({ id: 'user-1' });
+    mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 2 });
+
+    await expect(service.resetPassword({ token: 'valid-token', newPassword: 'NewPass123!' })).resolves.toEqual({
+      message: 'Password reset successfully. You may now sign in.',
+    });
+    expect(mockPrisma.passwordResetToken.updateMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ id: 'reset-1', usedAt: null, expiresAt: expect.any(Object) }),
+      data: { usedAt: expect.any(Date) },
+    });
+    expect(mockPrisma.user.update).toHaveBeenCalled();
+  });
+
+  it('rejects a password reset token already claimed by another request', async () => {
+    mockPrisma.passwordResetToken.findUnique.mockResolvedValueOnce({
+      id: 'reset-1',
+      userId: 'user-1',
+      usedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      user: { id: 'user-1' },
+    });
+    mockPrisma.passwordResetToken.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(service.resetPassword({ token: 'valid-token', newPassword: 'NewPass123!' })).rejects.toThrow(
+      'Invalid or expired password reset token',
+    );
+    expect(mockPrisma.user.update).not.toHaveBeenCalled();
+  });
   it('should return success message on logout', async () => {
     mockPrisma.refreshToken.updateMany.mockResolvedValueOnce({ count: 2 });
     const result = await service.logout('user-id');
