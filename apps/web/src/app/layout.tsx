@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: 'Bring projects, tasks, clients, team collaboration and AI assistance into one secure business workspace with TriFusion AI.',
   applicationName: 'TriFusion AI',
   keywords: ['AI business workspace', 'project management', 'team collaboration', 'multi-tenant workspace', 'AI assistant'],
-  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
+  icons: { icon: '/icon.svg', shortcut: '/icon.svg' },
   openGraph: {
     type: 'website',
     title: 'TriFusion AI | Intelligent Business Workspace',
