@@ -456,7 +456,7 @@ def workspace_assistant_stream(request):
                     )
                     yield f"data: {json.dumps(chunk)}\n\n"
                     break
-        except Exception as e:
+        except Exception:
             yield f"data: {json.dumps({'type': 'error', 'error': 'The assistant stream failed.'})}\n\n"
 
     response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
