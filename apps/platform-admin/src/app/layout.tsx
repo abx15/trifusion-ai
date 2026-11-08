@@ -4,7 +4,7 @@ import { TrifusionProvider } from '@trifusion/ui';
 import { PlatformShell } from '../components/platform-shell';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://trifusionaiadmin.vercel.app'),
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
   title: { default: 'Platform Administration', template: '%s | TriFusion AI Admin' },
   description: 'Secure TriFusion AI platform administration and operations portal.',
   applicationName: 'TriFusion AI Admin',
