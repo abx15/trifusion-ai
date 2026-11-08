@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: { default: 'Platform Administration', template: '%s | TriFusion AI Admin' },
   description: 'Secure TriFusion AI platform administration and operations portal.',
   applicationName: 'TriFusion AI Admin',
-  icons: { icon: '/favicon.svg', shortcut: '/favicon.svg' },
+  icons: { icon: '/icon.svg', shortcut: '/icon.svg' },
   robots: { index: false, follow: false },
 };
 
