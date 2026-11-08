@@ -4,7 +4,7 @@ import { Providers } from '../components/providers';
 import { SiteChrome } from '../components/layout/site-chrome';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://trifusion-ai-app.vercel.app'),
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
   title: {
     default: 'TriFusion AI | Intelligent Business Workspace',
     template: '%s | TriFusion AI',
