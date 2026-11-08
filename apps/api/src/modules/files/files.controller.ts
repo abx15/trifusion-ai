@@ -1,19 +1,32 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
 import { WorkspaceRole } from '@prisma/client';
+import { IsInt, IsMimeType, IsString, Max, MaxLength, Min } from 'class-validator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CurrentWorkspace, RequireWorkspaceRole } from '../auth/decorators/authorization.decorators';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { WorkspaceGuard } from '../auth/guards/workspace.guard';
 import { FilesService } from './files.service';
 
-interface FileIntentBody {
-  originalName: string;
-  size: number;
-  contentType: string;
+class FileIntentBody {
+  @IsString()
+  @MaxLength(255)
+  originalName!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(26214400)
+  size!: number;
+
+  @IsString()
+  @IsMimeType()
+  @MaxLength(127)
+  contentType!: string;
 }
 
-interface FileFinalizeBody {
-  objectKey: string;
+class FileFinalizeBody {
+  @IsString()
+  @MaxLength(1024)
+  objectKey!: string;
 }
 
 @Controller('workspaces/:workspaceId/files')
