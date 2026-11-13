@@ -510,12 +510,10 @@ export default function Home() {
 
               <Box sx={{ mt: 5, display: 'flex', gap: 2 }}>
                 <Button
-                  component="a"
-                  href="http://localhost:3001/api/docs"
-                  target="_blank"
-                  rel="noreferrer"
+                  component={Link}
+                  href="/register"
                   variant="outlined"
-                  startIcon={<CodeIcon />}
+                  startIcon={<ArrowForwardIcon />}
                   sx={{
                     borderColor: '#003F5C',
                     color: '#003F5C',
@@ -525,7 +523,7 @@ export default function Home() {
                     borderRadius: 2,
                   }}
                 >
-                  Explore Swagger API Docs
+                  Create your workspace
                 </Button>
               </Box>
             </Grid>
